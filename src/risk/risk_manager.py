@@ -1,23 +1,24 @@
 """
-Risk Manager
-────────────
+Risk Manager — Enhanced
+───────────────────────
 The most important module in the entire bot.
 Controls position sizing, enforces daily limits, and triggers circuit breakers.
 
-Rules enforced:
-- Max 1-2% risk per trade
-- Max 3% daily loss → stop trading
-- Max 5 trades per day
-- Max 2 concurrent positions
-- Min 1:2 risk/reward ratio
-- Max 30% of capital in one position
-- Pause after 3 consecutive losses
+Enhanced with:
+- Intraday drawdown tracking (high-water mark)
+- Volatility-adjusted sizing (India VIX)
+- Performance-adaptive sizing (half-Kelly criterion)
+- Equity curve trading (reduce size during drawdowns)
+- Sector-aware position limits
+- Time-of-day position scaling
+- Confluence score threshold
 """
 
 from datetime import datetime, timedelta
 
 from config import settings
 from src.execution.order_manager import OrderManager
+from src.risk.sector_map import get_sector
 from src.strategy.base import TradeSignal, Signal
 from src.utils.logger import logger
 
@@ -25,13 +26,21 @@ from src.utils.logger import logger
 class RiskManager:
     """Enforces all risk management rules before allowing a trade."""
 
-    def __init__(self, order_manager: OrderManager):
+    def __init__(self, order_manager: OrderManager, db=None):
         self.order_manager = order_manager
+        self.db = db
         self.capital = settings.INITIAL_CAPITAL
         self._consecutive_losses = 0
         self._paused_until: datetime | None = None
         self._daily_loss = 0.0
         self._unrealized_pnl = 0.0
+
+        # Intraday drawdown tracking
+        self._intraday_high_water_mark = 0.0
+        self._intraday_drawdown = 0.0
+
+        # Volatility regime (set at market open)
+        self._vix_level: float | None = None
 
     def evaluate(self, signal: TradeSignal) -> TradeSignal | None:
         """
@@ -44,10 +53,20 @@ class RiskManager:
             return None
 
         # ── Check circuit breakers ──
-        rejection = self._check_circuit_breakers()
+        rejection = self._check_circuit_breakers(signal)
         if rejection:
             logger.warning(f"[RISK] Trade REJECTED for {signal.symbol}: {rejection}")
             return None
+
+        # ── Check confluence score threshold ──
+        if getattr(settings, 'ENABLE_CONFLUENCE_SCORING', False):
+            threshold = getattr(settings, 'CONFLUENCE_THRESHOLD', 55)
+            if signal.confluence_score > 0 and signal.confluence_score < threshold:
+                logger.warning(
+                    f"[RISK] Trade REJECTED for {signal.symbol}: "
+                    f"Confluence {signal.confluence_score:.0f} < {threshold}"
+                )
+                return None
 
         # ── Check risk/reward ratio ──
         if signal.risk_reward_ratio < settings.MIN_RISK_REWARD_RATIO:
@@ -69,10 +88,11 @@ class RiskManager:
             f"[RISK] Trade APPROVED for {signal.symbol}: "
             f"Qty={quantity}, Risk=Rs {signal.risk_per_share * quantity:.2f}, "
             f"R:R={signal.risk_reward_ratio:.1f}"
+            + (f", Confluence={signal.confluence_score:.0f}" if signal.confluence_score > 0 else "")
         )
         return signal
 
-    def _check_circuit_breakers(self) -> str | None:
+    def _check_circuit_breakers(self, signal: TradeSignal = None) -> str | None:
         """Check all circuit breaker conditions. Returns rejection reason or None."""
 
         # Daily loss limit (includes unrealized P&L from open positions)
@@ -80,6 +100,16 @@ class RiskManager:
         max_daily_loss = self.capital * (settings.MAX_DAILY_LOSS_PCT / 100)
         if daily_pnl < 0 and abs(daily_pnl) >= max_daily_loss:
             return f"Daily loss limit hit: Rs {daily_pnl:.2f} (max: Rs {max_daily_loss:.2f})"
+
+        # Intraday drawdown limit
+        max_drawdown_pct = getattr(settings, 'MAX_INTRADAY_DRAWDOWN_PCT', 0)
+        if max_drawdown_pct > 0 and self._intraday_drawdown > 0:
+            max_drawdown = self.capital * (max_drawdown_pct / 100)
+            if self._intraday_drawdown >= max_drawdown:
+                return (
+                    f"Intraday drawdown limit hit: Rs {self._intraday_drawdown:.2f} "
+                    f"(max: Rs {max_drawdown:.2f})"
+                )
 
         # Max trades per day
         trade_count = self.order_manager.get_todays_trade_count()
@@ -91,6 +121,12 @@ class RiskManager:
         if open_positions >= settings.MAX_OPEN_POSITIONS:
             return f"Max open positions: {open_positions}/{settings.MAX_OPEN_POSITIONS}"
 
+        # Sector concentration limit
+        if signal is not None and getattr(settings, 'MAX_POSITIONS_PER_SECTOR', 0) > 0:
+            sector_rejection = self._check_sector_limit(signal.symbol)
+            if sector_rejection:
+                return sector_rejection
+
         # Consecutive losses pause
         if self._paused_until and settings.now_ist() < self._paused_until:
             remaining = (self._paused_until - settings.now_ist()).seconds // 60
@@ -98,19 +134,43 @@ class RiskManager:
 
         return None
 
+    def _check_sector_limit(self, symbol: str) -> str | None:
+        """Check if adding this symbol would exceed sector concentration limit."""
+        max_per_sector = getattr(settings, 'MAX_POSITIONS_PER_SECTOR', 0)
+        if max_per_sector <= 0:
+            return None
+
+        new_sector = get_sector(symbol)
+        if new_sector == "Unknown":
+            return None
+
+        open_orders = self.order_manager.get_open_orders()
+        sector_count = sum(1 for o in open_orders if get_sector(o.symbol) == new_sector)
+
+        if sector_count >= max_per_sector:
+            existing = [o.symbol for o in open_orders if get_sector(o.symbol) == new_sector]
+            return (
+                f"Sector limit: already holding {existing} in {new_sector} "
+                f"({sector_count}/{max_per_sector})"
+            )
+        return None
+
     def _calculate_position_size(self, signal: TradeSignal) -> int:
         """
         Calculate how many shares to buy based on risk rules.
 
-        Position Size = (Capital × Risk%) / Risk per share
+        Position Size = (Capital x Risk% x Adjustments) / Risk per share
         Capped by maximum position percentage.
         """
         risk_per_share = signal.risk_per_share
         if risk_per_share <= 0:
             return 0
 
-        # Risk-based sizing: max 1-2% of capital at risk
-        max_risk_amount = self.capital * (settings.RISK_PER_TRADE_PCT / 100)
+        # Base risk percentage, then apply multipliers
+        risk_pct = self._get_adjusted_risk_pct()
+
+        # Risk-based sizing
+        max_risk_amount = self.capital * (risk_pct / 100)
         quantity_by_risk = int(max_risk_amount / risk_per_share)
 
         # Position value cap: max 30% of capital in one trade
@@ -126,6 +186,167 @@ class RiskManager:
                 return 0  # Even 1 share exceeds allowed risk
             return 1
         return quantity
+
+    def _get_adjusted_risk_pct(self) -> float:
+        """
+        Calculate adjusted risk percentage after all multipliers.
+        Multiplicative chain: base_risk * vix_mult * kelly_mult * equity_mult * time_mult
+        """
+        base_risk = settings.RISK_PER_TRADE_PCT
+
+        # 1. Volatility (VIX) adjustment
+        vix_mult = self._get_vix_multiplier()
+
+        # 2. Kelly criterion adjustment
+        kelly_mult = self._get_kelly_multiplier()
+
+        # 3. Equity curve adjustment
+        equity_mult = self._get_equity_curve_multiplier()
+
+        # 4. Time-of-day adjustment
+        time_mult = self._get_time_multiplier()
+
+        adjusted = base_risk * vix_mult * kelly_mult * equity_mult * time_mult
+
+        # Clamp: never less than 10% or more than 150% of base
+        adjusted = max(base_risk * 0.1, min(adjusted, base_risk * 1.5))
+
+        return adjusted
+
+    def _get_vix_multiplier(self) -> float:
+        """Scale position size based on India VIX level."""
+        if not getattr(settings, 'VOLATILITY_SCALING_ENABLED', False) or self._vix_level is None:
+            return 1.0
+
+        vix = self._vix_level
+        vix_low = getattr(settings, 'VIX_LOW', 12.0)
+        vix_high = getattr(settings, 'VIX_HIGH', 20.0)
+        vix_extreme = getattr(settings, 'VIX_EXTREME', 25.0)
+
+        if vix < vix_low:
+            return 1.2  # Low vol — slightly larger positions
+        elif vix < vix_high:
+            return 1.0  # Normal
+        elif vix < vix_extreme:
+            return 0.6  # High vol — reduce
+        else:
+            return 0.3  # Extreme vol — minimal size
+
+    def _get_kelly_multiplier(self) -> float:
+        """Half-Kelly criterion based on recent trade performance."""
+        if not getattr(settings, 'KELLY_ENABLED', False):
+            return 1.0
+
+        min_trades = getattr(settings, 'KELLY_MIN_TRADES', 20)
+
+        # Get recent trades
+        all_orders = self.order_manager.orders
+        closed_orders = [o for o in all_orders if not o.is_open and o.pnl != 0]
+
+        # Also check historical from DB
+        if self.db and len(closed_orders) < min_trades:
+            try:
+                recent_db = self.db.get_daily_summaries(30)
+                total_hist_trades = sum(d.get("total_trades", 0) for d in recent_db)
+                if total_hist_trades < min_trades:
+                    return 1.0  # Not enough history
+            except Exception:
+                pass
+
+        if len(closed_orders) < min_trades:
+            return 1.0
+
+        # Calculate win rate and win/loss ratio
+        wins = [o for o in closed_orders if o.pnl > 0]
+        losses = [o for o in closed_orders if o.pnl < 0]
+
+        if not wins or not losses:
+            return 1.0
+
+        win_rate = len(wins) / len(closed_orders)
+        avg_win = sum(o.pnl for o in wins) / len(wins)
+        avg_loss = abs(sum(o.pnl for o in losses) / len(losses))
+
+        if avg_loss <= 0:
+            return 1.0
+
+        win_loss_ratio = avg_win / avg_loss
+
+        # Kelly fraction: K = W - (1-W)/R
+        kelly = win_rate - ((1 - win_rate) / win_loss_ratio)
+
+        # Half-Kelly for safety
+        half_kelly_mult = max(0.25, min(kelly / 2 + 0.5, 1.5))
+
+        return half_kelly_mult
+
+    def _get_equity_curve_multiplier(self) -> float:
+        """Reduce size during drawdown periods."""
+        if not getattr(settings, 'EQUITY_CURVE_TRADING_ENABLED', False) or not self.db:
+            return 1.0
+
+        try:
+            lookback = getattr(settings, 'EQUITY_CURVE_LOOKBACK_DAYS', 10)
+            summaries = self.db.get_daily_summaries(lookback)
+
+            if not summaries:
+                return 1.0
+
+            # Check for consecutive losing days
+            consecutive_losing = 0
+            for s in summaries:
+                if s.get("total_pnl", 0) < 0:
+                    consecutive_losing += 1
+                else:
+                    break
+
+            severe_threshold = getattr(settings, 'EQUITY_CURVE_SEVERE_THRESHOLD', 3)
+            if consecutive_losing >= severe_threshold:
+                return getattr(settings, 'EQUITY_CURVE_SEVERE_SCALE', 0.25)
+
+            # Check cumulative P&L trend
+            cumulative_pnl = sum(s.get("total_pnl", 0) for s in summaries)
+            if cumulative_pnl < 0:
+                return getattr(settings, 'EQUITY_CURVE_DRAWDOWN_SCALE', 0.5)
+
+            return 1.0
+        except Exception:
+            return 1.0
+
+    def _get_time_multiplier(self) -> float:
+        """Adjust position size based on time of day."""
+        if not getattr(settings, 'ENABLE_TIME_SCALING', False):
+            return 1.0
+
+        now = settings.now_ist()
+        minutes = now.hour * 60 + now.minute
+
+        if minutes < 570:    # Before 9:30
+            return 0.0       # No trading
+        elif minutes < 630:  # 9:30 - 10:30 — Morning breakout session
+            return 1.0
+        elif minutes < 780:  # 10:30 - 13:00 — Midday lull
+            return 0.6
+        elif minutes < 870:  # 13:00 - 14:30 — Afternoon session
+            return 0.8
+        elif minutes < 900:  # 14:30 - 15:00 — Pre-close
+            return 0.5
+        else:
+            return 0.0       # No trading
+
+    def set_vix_level(self, vix: float):
+        """Set the current India VIX level (called at market open)."""
+        self._vix_level = vix
+        logger.info(f"[RISK] VIX level set: {vix:.2f}")
+
+    def update_intraday_equity(self, realized_pnl: float, unrealized_pnl: float):
+        """Update intraday equity tracking for drawdown circuit breaker."""
+        total_pnl = realized_pnl + unrealized_pnl
+
+        if total_pnl > self._intraday_high_water_mark:
+            self._intraday_high_water_mark = total_pnl
+
+        self._intraday_drawdown = self._intraday_high_water_mark - total_pnl
 
     def record_trade_result(self, pnl: float):
         """Record a completed trade's P&L for circuit breaker tracking."""
@@ -166,4 +387,8 @@ class RiskManager:
             "max_positions": settings.MAX_OPEN_POSITIONS,
             "consecutive_losses": self._consecutive_losses,
             "is_paused": self._paused_until is not None and settings.now_ist() < self._paused_until,
+            "intraday_drawdown": self._intraday_drawdown,
+            "intraday_hwm": self._intraday_high_water_mark,
+            "vix_level": self._vix_level,
+            "adjusted_risk_pct": self._get_adjusted_risk_pct(),
         }

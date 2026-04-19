@@ -25,6 +25,24 @@ from backtesting.lib import crossover
 from config import settings
 
 
+# ── Realistic Zerodha Cost Model ──
+def zerodha_commission(size, price):
+    """
+    Compute realistic Zerodha intraday trading costs.
+
+    Includes brokerage, STT, transaction charges, GST, SEBI fees, and stamp duty.
+    Returns total cost for the given leg (buy or sell side).
+    """
+    turnover = abs(size) * price
+    brokerage = min(20, turnover * 0.0003)
+    stt = turnover * 0.00025  # Sell-side STT approximation
+    txn = turnover * 0.0000345
+    gst = (brokerage + txn) * 0.18
+    sebi = turnover * 0.000001
+    stamp = turnover * 0.00003
+    return brokerage + stt + txn + gst + sebi + stamp
+
+
 class ORBBacktest(Strategy):
     """Opening Range Breakout backtest — matches live logic (fixed range per day)."""
     orb_period = 3  # Number of candles for opening range (3 × 5min = 15min)
@@ -136,6 +154,121 @@ class RSIEMABacktest(Strategy):
             self.sell(sl=stop, tp=target)
 
 
+class VWAPSupertrendBacktest(Strategy):
+    """VWAP + Supertrend backtest strategy.
+
+    BUY:  Supertrend flips bullish (direction -1 -> 1 confirmed for 2+ candles)
+          AND price is above VWAP.
+    SELL: Supertrend flips bearish (direction 1 -> -1 confirmed for 2+ candles)
+          AND price is below VWAP.
+    Stop-loss: Supertrend line value.
+    Target:    entry + risk * 2.0.
+    Position sizing based on ATR.
+    """
+    supertrend_period = 10
+    supertrend_multiplier = 3.0
+    confirmation_candles = 2
+    rr_ratio = 2.0
+
+    def init(self):
+        high = pd.Series(self.data.High, index=self.data.index)
+        low = pd.Series(self.data.Low, index=self.data.index)
+        close = pd.Series(self.data.Close, index=self.data.index)
+        volume = pd.Series(self.data.Volume, index=self.data.index)
+
+        # ── Supertrend ──
+        st_df = ta.supertrend(
+            high, low, close,
+            length=self.supertrend_period,
+            multiplier=self.supertrend_multiplier,
+        )
+        # pandas_ta returns a DataFrame with columns like:
+        #   SUPERT_{length}_{mult}, SUPERTd_{length}_{mult}, ...
+        st_col = [c for c in st_df.columns if c.startswith("SUPERT_")][0]
+        sd_col = [c for c in st_df.columns if c.startswith("SUPERTd_")][0]
+
+        self.supertrend = self.I(lambda: st_df[st_col].values, name="Supertrend")
+        self.st_direction = self.I(lambda: st_df[sd_col].values, name="ST_Dir")
+
+        # ── VWAP (cumulative, reset daily) ──
+        def _daily_vwap(high, low, close, volume):
+            h = pd.Series(high)
+            l = pd.Series(low)
+            c = pd.Series(close)
+            v = pd.Series(volume)
+            idx = self.data.index
+
+            typical_price = (h + l + c) / 3.0
+            tp_vol = typical_price * v
+
+            # Group by date for daily reset
+            dates = pd.Series([d.date() if hasattr(d, 'date') else d for d in idx])
+            cum_tp_vol = tp_vol.groupby(dates).cumsum()
+            cum_vol = v.groupby(dates).cumsum()
+            vwap = cum_tp_vol / cum_vol.replace(0, float('nan'))
+            return vwap.values
+
+        self.vwap = self.I(
+            _daily_vwap,
+            self.data.High, self.data.Low, self.data.Close, self.data.Volume,
+            name="VWAP",
+        )
+
+        # ── ATR for position sizing ──
+        self.atr = self.I(
+            lambda h, l, c: ta.atr(pd.Series(h), pd.Series(l), pd.Series(c), length=14),
+            self.data.High, self.data.Low, self.data.Close,
+        )
+
+    def next(self):
+        if self.position:
+            return
+
+        # Need enough history for confirmation window
+        if len(self.data) < self.confirmation_candles + 2:
+            return
+
+        atr_val = self.atr[-1]
+        if pd.isna(atr_val) or pd.isna(self.vwap[-1]) or pd.isna(self.supertrend[-1]):
+            return
+
+        close = self.data.Close[-1]
+        st_val = self.supertrend[-1]
+        vwap_val = self.vwap[-1]
+
+        # Check if Supertrend direction is consistently bullish/bearish
+        # for the last `confirmation_candles` bars
+        dirs = [self.st_direction[-1 - i] for i in range(self.confirmation_candles)]
+
+        all_bullish = all(d == 1 for d in dirs)
+        all_bearish = all(d == -1 for d in dirs)
+
+        # Also check that this is a *flip* — the bar just before the confirmation
+        # window was the opposite direction
+        prev_idx = self.confirmation_candles
+        if prev_idx >= len(self.data):
+            return
+        prev_dir = self.st_direction[-1 - prev_idx]
+
+        # ── BUY: Supertrend flipped bullish + price above VWAP ──
+        if all_bullish and prev_dir == -1 and close > vwap_val:
+            stop = st_val
+            risk = close - stop
+            if risk <= 0:
+                return
+            target = close + (risk * self.rr_ratio)
+            self.buy(sl=stop, tp=target)
+
+        # ── SELL: Supertrend flipped bearish + price below VWAP ──
+        elif all_bearish and prev_dir == 1 and close < vwap_val:
+            stop = st_val
+            risk = stop - close
+            if risk <= 0:
+                return
+            target = close - (risk * self.rr_ratio)
+            self.sell(sl=stop, tp=target)
+
+
 def load_sample_data(symbol: str = "INFY", days: int = 60) -> pd.DataFrame:
     """
     Load historical data. Tries Zerodha first, falls back to generated sample.
@@ -200,13 +333,12 @@ def load_sample_data(symbol: str = "INFY", days: int = 60) -> pd.DataFrame:
 
 def main():
     parser = argparse.ArgumentParser(description="Backtest Trading Strategies")
-    parser.add_argument("--strategy", default="ORB", choices=["ORB", "RSI_EMA"],
+    parser.add_argument("--strategy", default="ORB",
+                        choices=["ORB", "RSI_EMA", "VWAP_SUPERTREND"],
                         help="Strategy to backtest")
     parser.add_argument("--symbol", default="INFY", help="Stock symbol")
     parser.add_argument("--days", type=int, default=60, help="Days of historical data")
     parser.add_argument("--capital", type=int, default=100000, help="Starting capital")
-    parser.add_argument("--commission", type=float, default=0.002,
-                        help="Commission + slippage rate (default 0.2%%)")
     args = parser.parse_args()
 
     # Load data
@@ -216,20 +348,22 @@ def main():
         return
 
     # Select strategy
-    if args.strategy == "ORB":
-        strategy_class = ORBBacktest
-    else:
-        strategy_class = RSIEMABacktest
+    strategy_map = {
+        "ORB": ORBBacktest,
+        "RSI_EMA": RSIEMABacktest,
+        "VWAP_SUPERTREND": VWAPSupertrendBacktest,
+    }
+    strategy_class = strategy_map[args.strategy]
 
     print(f"\nRunning backtest: {args.strategy} on {args.symbol}")
-    print(f"Capital: Rs {args.capital:,} | Commission: {args.commission * 100}%")
+    print(f"Capital: Rs {args.capital:,} | Commission: Zerodha realistic cost model")
     print("=" * 50)
 
-    # Run backtest
+    # Run backtest with realistic Zerodha commission model
     bt = Backtest(
         df, strategy_class,
         cash=args.capital,
-        commission=args.commission,
+        commission=zerodha_commission,
         exclusive_orders=True,
     )
     stats = bt.run()

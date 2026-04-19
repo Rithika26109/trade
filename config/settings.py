@@ -73,6 +73,48 @@ STOP_LOSS_TYPE = "ATR"  # Options: "FIXED", "ATR", "TRAILING"
 FIXED_STOP_LOSS_PCT = 1.0  # 1% fixed stop-loss
 TRAILING_STOP_PCT = 0.5  # 0.5% trailing stop
 
+# ── Intraday Drawdown ──
+MAX_INTRADAY_DRAWDOWN_PCT = 2.0  # Stop trading if drawdown from peak > 2%
+
+# ── Market Regime Detection ──
+ENABLE_REGIME_DETECTION = True
+ADX_STRONG_TREND = 40  # ADX above this = strong trend
+ADX_TREND = 25  # ADX above this = trend
+ADX_RANGING = 20  # ADX below this = ranging/choppy
+
+# ── Confluence Scoring ──
+ENABLE_CONFLUENCE_SCORING = True
+CONFLUENCE_THRESHOLD = 55  # Minimum score (0-100) to take a trade
+
+# ── Volatility (VIX) Scaling ──
+VOLATILITY_SCALING_ENABLED = True
+VIX_LOW = 12.0  # Below this: low volatility → 1.2x size
+VIX_HIGH = 20.0  # Above this: high volatility → 0.6x size
+VIX_EXTREME = 25.0  # Above this: extreme → 0.3x size
+
+# ── Performance-Adaptive Sizing (Kelly Criterion) ──
+KELLY_ENABLED = True
+KELLY_MIN_TRADES = 20  # Minimum trades before Kelly activates
+
+# ── Equity Curve Trading ──
+EQUITY_CURVE_TRADING_ENABLED = True
+EQUITY_CURVE_LOOKBACK_DAYS = 10
+EQUITY_CURVE_DRAWDOWN_SCALE = 0.5  # 50% size when losing streak
+EQUITY_CURVE_SEVERE_SCALE = 0.25  # 25% size when severely losing
+EQUITY_CURVE_SEVERE_THRESHOLD = 3  # Consecutive losing days for severe
+
+# ── Sector Limits ──
+MAX_POSITIONS_PER_SECTOR = 1  # Max 1 position in same sector
+
+# ── Partial Profit-Taking ──
+ENABLE_PARTIAL_EXITS = True
+PARTIAL_EXIT_1R_PCT = 40  # Close 40% at 1R
+PARTIAL_EXIT_2R_PCT = 30  # Close 30% at 2R
+PARTIAL_EXIT_3R_PCT = 30  # Close remaining 30% at 3R
+
+# ── Time-of-Day Scaling ──
+ENABLE_TIME_SCALING = True
+
 # ── Paper Trading ──
 PAPER_SLIPPAGE_PCT = 0.05  # 0.05% slippage simulation for paper trades
 

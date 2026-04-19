@@ -25,14 +25,16 @@ import pandas as pd
 
 from config import settings
 from src.auth.login import ZerodhaAuth
-from src.data.market_data import MarketData
+from src.data.market_data import MarketData, resample_to_htf
 from src.data.websocket import TickerManager
 from src.execution.order_manager import OrderManager
 from src.execution.position_manager import PositionManager
 from src.indicators.indicators import add_all_indicators
+from src.indicators.market_regime import detect_regime, MarketRegime
 from src.risk.risk_manager import RiskManager
 from src.scanner.stock_scanner import StockScanner
 from src.strategy.base import Signal, TradeSignal
+from src.strategy.orchestrator import StrategyOrchestrator
 from src.strategy.orb import ORBStrategy
 from src.strategy.rsi_ema import RSIEMAStrategy
 from src.strategy.vwap_supertrend import VWAPSupertrendStrategy
@@ -102,7 +104,7 @@ class TradingBot:
         self.order_manager = OrderManager(self.kite)
         self.order_manager.is_paper = self.mode == "paper"
         self.position_manager = PositionManager(self.order_manager, db=self.db)
-        self.risk_manager = RiskManager(self.order_manager)
+        self.risk_manager = RiskManager(self.order_manager, db=self.db)
 
         # ── Crash Recovery ──
         self._recover_orphaned_positions()
@@ -115,6 +117,8 @@ class TradingBot:
             self.strategy = RSIEMAStrategy()
         elif strategy_name == "VWAP_SUPERTREND":
             self.strategy = VWAPSupertrendStrategy()
+        elif strategy_name == "MULTI":
+            self.strategy = StrategyOrchestrator()
         else:
             logger.warning(f"Unknown strategy '{strategy_name}', defaulting to ORB")
             self.strategy = ORBStrategy()
@@ -154,16 +158,22 @@ class TradingBot:
             # ── Step 1: Wait for market pre-open ──
             self._wait_until(settings.MARKET_OPEN, "market open")
 
-            # ── Step 2: Scan for today's stocks ──
+            # ── Step 2: Fetch India VIX for volatility scaling ──
+            self._fetch_vix()
+
+            # ── Step 3: Scan for today's stocks ──
             self._scan_stocks()
 
-            # ── Step 3: Collect opening range ──
+            # ── Step 4: Start WebSocket for real-time exits ──
+            self._start_websocket()
+
+            # ── Step 5: Collect opening range ──
             self._collect_opening_range()
 
-            # ── Step 4: Main trading loop ──
+            # ── Step 6: Main trading loop ──
             self._trading_loop()
 
-            # ── Step 5: End of day ──
+            # ── Step 7: End of day ──
             self._end_of_day()
 
         except KeyboardInterrupt:
@@ -174,6 +184,58 @@ class TradingBot:
         finally:
             self.running = False
             self._cleanup()
+
+    def _fetch_vix(self):
+        """Fetch India VIX for volatility-adjusted position sizing."""
+        if not self.market_data or not getattr(settings, 'VOLATILITY_SCALING_ENABLED', False):
+            return
+        try:
+            vix_data = self.market_data.get_ltp(["INDIA VIX"], exchange="NSE")
+            if "INDIA VIX" in vix_data:
+                self.risk_manager.set_vix_level(vix_data["INDIA VIX"])
+            else:
+                logger.warning("Could not fetch India VIX — using default sizing")
+        except Exception as e:
+            logger.warning(f"VIX fetch failed: {e} — using default sizing")
+
+    def _start_websocket(self):
+        """Start WebSocket for real-time stop-loss/target monitoring."""
+        if not self.kite or not self.instrument_tokens:
+            return
+        try:
+            self.ticker = TickerManager(
+                api_key=settings.KITE_API_KEY,
+                access_token=self.kite.access_token,
+            )
+            tokens = list(self.instrument_tokens.values())
+            self.ticker.subscribe(tokens, mode="quote")
+            self.ticker.on_tick(self._on_tick)
+            self.ticker.start(threaded=True)
+            logger.info(f"WebSocket started — monitoring {len(tokens)} instruments")
+        except Exception as e:
+            logger.warning(f"WebSocket start failed: {e} — using polling fallback")
+
+    def _on_tick(self, ticks: list[dict]):
+        """Real-time tick handler for immediate stop-loss/target exits."""
+        for tick in ticks:
+            token = tick.get("instrument_token")
+            symbol = self.token_to_symbol.get(token)
+            if not symbol:
+                continue
+
+            price = tick.get("last_price")
+            if price is None:
+                continue
+
+            # Check if any open position needs immediate exit
+            pos = self.position_manager.get_position(symbol)
+            if pos:
+                exit_reason = self.position_manager._should_exit(pos, price)
+                if exit_reason:
+                    # Queue the exit — don't process in WebSocket thread
+                    self.position_manager.pending_exits.put(
+                        (pos.order_id, price, exit_reason)
+                    )
 
     def _scan_stocks(self):
         """Select today's stocks to trade."""
@@ -199,7 +261,9 @@ class TradingBot:
 
     def _collect_opening_range(self):
         """Wait for the opening range period and record highs/lows."""
-        if not isinstance(self.strategy, ORBStrategy):
+        # ORB data needed for ORB strategy or MULTI mode (which includes ORB)
+        needs_orb = isinstance(self.strategy, ORBStrategy) or isinstance(self.strategy, StrategyOrchestrator)
+        if not needs_orb:
             logger.info("Strategy doesn't need opening range, skipping...")
             self._wait_until(settings.TRADING_START, "trading start")
             return
@@ -213,11 +277,16 @@ class TradingBot:
 
         # Fetch opening range for each stock
         if self.market_data:
+            # Get the ORB strategy instance (either direct or from orchestrator)
+            orb_strat = self.strategy
+            if isinstance(self.strategy, StrategyOrchestrator):
+                orb_strat = self.strategy.orb_strategy
+
             for symbol in self.todays_watchlist:
                 try:
                     orb = self.market_data.get_opening_range(symbol, minutes=orb_minutes)
-                    if orb:
-                        self.strategy.set_opening_range(symbol, orb["high"], orb["low"], orb["open"])
+                    if orb and orb_strat:
+                        orb_strat.set_opening_range(symbol, orb["high"], orb["low"], orb["open"])
                     else:
                         logger.warning(f"No opening range data for {symbol}")
                 except Exception as e:
@@ -257,7 +326,7 @@ class TradingBot:
                 time.sleep(sleep_time)
 
     def _run_single_cycle(self):
-        """Execute one cycle of the trading loop."""
+        """Execute one cycle of the trading loop with multi-TF analysis and regime detection."""
         # Get current prices for position monitoring
         current_prices = {}
         if self.market_data:
@@ -272,15 +341,17 @@ class TradingBot:
 
         # ── Log closed trades + update capital ──
         for order in self.order_manager.orders:
-            if order.pnl != 0 and order.order_id not in self._logged_order_ids:
+            if not order.is_open and order.order_id not in self._logged_order_ids:
                 self.db.log_trade(order)
                 self.risk_manager.record_trade_result(order.pnl)
                 self.risk_manager.update_capital(self.risk_manager.capital + order.pnl)
                 self._logged_order_ids.add(order.order_id)
 
-        # ── Update unrealized P&L for risk circuit breaker ──
+        # ── Update unrealized P&L and intraday drawdown tracking ──
         unrealized = self.position_manager.get_unrealized_pnl(current_prices)
+        realized = self.order_manager.get_todays_pnl()
         self.risk_manager.set_unrealized_pnl(unrealized)
+        self.risk_manager.update_intraday_equity(realized, unrealized)
 
         # ── Check risk status ──
         risk_status = self.risk_manager.get_status()
@@ -294,18 +365,29 @@ class TradingBot:
                 continue
 
             try:
-                # Fetch latest candle data
+                # Fetch latest candle data (primary timeframe)
                 df = self.market_data.get_todays_candles(
                     symbol, interval=settings.TIMEFRAME
                 )
                 if df.empty or len(df) < 5:
                     continue
 
-                # Calculate indicators
+                # Calculate indicators on primary timeframe
                 df = add_all_indicators(df)
 
-                # Get strategy signal
-                signal = self.strategy.analyze(df, symbol)
+                # ── Multi-timeframe analysis ──
+                df_htf = None
+                regime = None
+
+                if getattr(settings, 'ENABLE_REGIME_DETECTION', False):
+                    # Resample to 15-min for higher-timeframe analysis
+                    df_htf = resample_to_htf(df, interval="15min")
+                    if not df_htf.empty and len(df_htf) >= 5:
+                        df_htf = add_all_indicators(df_htf)
+                        regime = detect_regime(df_htf)
+
+                # Get strategy signal with multi-TF context
+                signal = self.strategy.analyze(df, symbol, df_htf=df_htf, regime=regime)
                 if signal.signal == Signal.HOLD:
                     continue
 
@@ -343,6 +425,7 @@ class TradingBot:
             f"Open: {positions} | "
             f"Realized P&L: Rs {pnl:+.2f} | "
             f"Unrealized: Rs {unrealized:+.2f}"
+            + (f" | Regime: {regime.value}" if regime else "")
         )
 
     def _end_of_day(self):
