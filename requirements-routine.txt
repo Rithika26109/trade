@@ -1,0 +1,17 @@
+# Subset of requirements installed inside the Claude Routine cloud environment.
+# Keep this minimal — routines clone the repo fresh on every run, so every
+# package reinstalls. No pandas-ta, no backtesting.py, no websocket.
+#
+# Used by:
+#   - scripts/premarket_context.py  (scanner + regime)
+#   - scripts/validate_plan.py      (schema check before commit)
+#   - .claude/routines/*.md         (Gemini calls, Kite REST reads)
+
+pandas>=2.0
+numpy>=1.24
+kiteconnect>=4.2
+google-generativeai>=0.7
+jsonschema>=4.17
+python-dotenv>=1.0
+loguru>=0.7
+pytz>=2023.3

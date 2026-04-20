@@ -44,6 +44,8 @@ from src.utils.notifier import Notifier
 from src.utils.audit import audit
 from src.utils.compliance import ComplianceError, startup_compliance_check
 from src.utils import kill_switch
+from src.utils import journal
+from src.utils.plan_loader import load_plan, git_pull, DailyPlan
 
 
 class TradingBot:
@@ -74,6 +76,9 @@ class TradingBot:
         # Phase 3C: last regime observed per symbol (for outcome attribution)
         self._last_dir_regime: dict[str, str] = {}
         self._last_vol_regime: dict[str, str] = {}
+        # Today's Claude-Routine plan (None if missing/invalid — falls back
+        # to static WATCHLIST + default settings caps).
+        self.daily_plan: DailyPlan | None = None
 
     def setup(self):
         """Initialize all components."""
@@ -83,6 +88,20 @@ class TradingBot:
 
         # ── Validate config ──
         settings.validate_config()
+
+        # ── Pull the latest daily plan from the routines repo ──
+        # Best-effort: a failed pull (offline, conflict) just means we use
+        # whatever's already on disk — or no plan at all.
+        git_pull()
+        self.daily_plan = load_plan()
+        if self.daily_plan:
+            audit(
+                "plan_loaded",
+                date=self.daily_plan.date,
+                symbols=self.daily_plan.watchlist,
+                overrides=self.daily_plan.risk_overrides,
+                lessons=self.daily_plan.lessons_applied,
+            )
 
         # ── SEBI compliance gate (Phase 4) ──
         try:
@@ -130,6 +149,14 @@ class TradingBot:
         self.risk_manager = RiskManager(self.order_manager, db=self.db)
         # Let RiskManager query circuit limits / prev-close from MarketData.
         self.risk_manager.market_data = self.market_data
+
+        # Apply daily-plan risk overrides (already clamped by plan_loader).
+        if self.daily_plan and self.daily_plan.risk_overrides:
+            self.risk_manager.apply_runtime_overrides(
+                max_trades=self.daily_plan.risk_overrides.get("max_trades"),
+                risk_per_trade_pct=self.daily_plan.risk_overrides.get("risk_per_trade_pct"),
+                max_open_positions=self.daily_plan.risk_overrides.get("max_open_positions"),
+            )
 
         # ── Crash Recovery ──
         self._recover_orphaned_positions()
@@ -280,7 +307,12 @@ class TradingBot:
 
     def _scan_stocks(self):
         """Select today's stocks to trade."""
-        if self.scanner:
+        # Plan wins over scanner: if the morning routine picked a watchlist,
+        # use it verbatim. This is the whole point of the Routines integration.
+        if self.daily_plan and self.daily_plan.watchlist:
+            self.todays_watchlist = list(self.daily_plan.watchlist)
+            logger.info(f"[PLAN] Using plan watchlist ({len(self.todays_watchlist)} symbols)")
+        elif self.scanner:
             self.todays_watchlist = self.scanner.scan()
         else:
             self.todays_watchlist = settings.WATCHLIST[:5]
@@ -423,6 +455,14 @@ class TradingBot:
                     dir_key = self._last_dir_regime.get(order.symbol, "UNKNOWN")
                     vol_key = self._last_vol_regime.get(order.symbol, "NORMAL")
                     tracker.record(order.strategy, dir_key, vol_key, order.pnl)
+                journal.emit_event(
+                    "exit",
+                    symbol=order.symbol,
+                    signal=order.signal.value,
+                    strategy=order.strategy,
+                    pnl=order.pnl,
+                    reason=getattr(order, "exit_reason", None) or order.reason,
+                )
                 self._logged_order_ids.add(order.order_id)
 
         # ── Update unrealized P&L and intraday drawdown tracking ──
@@ -498,6 +538,26 @@ class TradingBot:
                 if signal.signal == Signal.HOLD:
                     continue
 
+                # ── Daily-plan bias filter ──
+                # If the pre-market routine flagged this symbol long-only,
+                # short-only, or avoid, veto signals that go the wrong way.
+                if self.daily_plan is not None:
+                    if not self.daily_plan.allows_direction(symbol, signal.signal.value):
+                        bias = self.daily_plan.get_bias(symbol)
+                        logger.info(
+                            f"[PLAN] Vetoed {signal.signal.value} on {symbol} "
+                            f"(bias={bias})"
+                        )
+                        journal.emit_event(
+                            "skipped_due_to_bias",
+                            symbol=symbol,
+                            signal=signal.signal.value,
+                            bias=bias,
+                            price=signal.price,
+                            reason=signal.reason,
+                        )
+                        continue
+
                 # Risk check + position sizing
                 approved = self.risk_manager.evaluate(signal)
                 if approved is None:
@@ -507,6 +567,19 @@ class TradingBot:
                 order = self.order_manager.place_order(approved)
                 if order:
                     self.position_manager.add_position(order)
+                    journal.emit_event(
+                        "entry",
+                        symbol=symbol,
+                        signal=signal.signal.value,
+                        strategy=signal.strategy,
+                        price=approved.executed_price if hasattr(approved, "executed_price") else signal.price,
+                        quantity=approved.quantity,
+                        stop_loss=signal.stop_loss,
+                        target=signal.target,
+                        reason=signal.reason,
+                        bias=self.daily_plan.get_bias(symbol) if self.daily_plan else None,
+                        conviction=self.daily_plan.conviction_by_symbol.get(symbol) if self.daily_plan else None,
+                    )
                     self.notifier.send_trade_alert(
                         action=signal.signal.value,
                         symbol=signal.symbol,
@@ -574,6 +647,19 @@ class TradingBot:
             capital=self.risk_manager.capital,
             is_paper=self.order_manager.is_paper,
         )
+
+        # ── Commit journal + events to git so the EOD review routine
+        # (scheduled for ~16:30 IST) picks up today's data. Best effort. ──
+        try:
+            import subprocess
+            subprocess.run(
+                ["python", "scripts/eod_commit.py"],
+                cwd=str(settings.BASE_DIR),
+                timeout=45,
+                check=False,
+            )
+        except Exception as e:
+            logger.warning(f"[EOD] eod_commit.py failed: {e}")
 
     def _generate_daily_report(self) -> dict:
         """Generate end-of-day performance report."""

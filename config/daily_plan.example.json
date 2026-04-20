@@ -1,0 +1,52 @@
+{
+  "date": "2026-04-21",
+  "version": 1,
+  "generated_at": "2026-04-21T07:32:18+05:30",
+  "regime_hint": {
+    "direction": "RANGING",
+    "volatility": "NORMAL",
+    "notes": "NIFTY consolidating below 22,400 resistance. US closed flat overnight. No major domestic catalysts."
+  },
+  "risk_overrides": {
+    "max_trades": 4,
+    "risk_per_trade_pct": 0.75,
+    "max_open_positions": 2
+  },
+  "watchlist": [
+    {
+      "symbol": "RELIANCE",
+      "bias": "long",
+      "conviction": 4,
+      "notes": "Held 2780 support yesterday on heavy volume; oil up 1.2%. Long-only above 2795."
+    },
+    {
+      "symbol": "HDFCBANK",
+      "bias": "both",
+      "conviction": 3,
+      "notes": "Range 1530-1555; play either breakout."
+    },
+    {
+      "symbol": "ICICIBANK",
+      "bias": "long",
+      "conviction": 4,
+      "notes": "Sector-leader; PSU bank index strength."
+    },
+    {
+      "symbol": "INFY",
+      "bias": "avoid",
+      "conviction": 5,
+      "notes": "Results tonight; skip to avoid event risk."
+    },
+    {
+      "symbol": "TCS",
+      "bias": "short",
+      "conviction": 3,
+      "notes": "IT sector weak; TCS below 20EMA; short only below 3820."
+    }
+  ],
+  "rationale": "Range-bound day expected. Lean long financials, short IT, skip event-risk names. Tighter risk (0.75% vs 1%) because three losing days in a row.",
+  "lessons_applied": [
+    "#lesson 2026-04-17: avoid taking new entries in the last 30 min of ranging days",
+    "#lesson 2026-04-18: INFY gaps on results more often than not — skip"
+  ]
+}

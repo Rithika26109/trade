@@ -53,6 +53,14 @@ class RiskManager:
         # Wired by main.py after both components are constructed.
         self.market_data = None
 
+        # ── Runtime risk overrides (from config/daily_plan.json) ──
+        # Set by RiskManager.apply_runtime_overrides() at startup. Each
+        # override is already clamped to the settings cap by plan_loader,
+        # but we re-clamp here as defence in depth. None means "use settings".
+        self._override_max_trades: int | None = None
+        self._override_risk_pct: float | None = None
+        self._override_max_positions: int | None = None
+
         # Phase 3E: restore persisted intraday risk state (survives crash-restart)
         if self.db and getattr(settings, "PERSIST_INTRADAY_HWM", False):
             try:
@@ -67,6 +75,57 @@ class RiskManager:
                     )
             except Exception:
                 pass
+
+    # ── Runtime-override accessors (daily-plan driven) ──────────────────
+
+    def _effective_max_trades(self) -> int:
+        cap = settings.MAX_TRADES_PER_DAY
+        if self._override_max_trades is None:
+            return cap
+        return min(cap, int(self._override_max_trades))
+
+    def _effective_max_positions(self) -> int:
+        cap = settings.MAX_OPEN_POSITIONS
+        if self._override_max_positions is None:
+            return cap
+        return min(cap, int(self._override_max_positions))
+
+    def _effective_risk_pct(self) -> float:
+        cap = settings.RISK_PER_TRADE_PCT
+        if self._override_risk_pct is None:
+            return cap
+        return min(cap, float(self._override_risk_pct))
+
+    def apply_runtime_overrides(
+        self,
+        *,
+        max_trades: int | None = None,
+        risk_per_trade_pct: float | None = None,
+        max_open_positions: int | None = None,
+    ) -> dict[str, float]:
+        """Apply per-day risk overrides from `config/daily_plan.json`.
+
+        All overrides are clamped to the settings caps (tighter-only). Passing
+        None for an argument leaves that override unchanged. Returns the
+        effective cap dict after applying.
+        """
+        if max_trades is not None:
+            v = max(1, min(int(max_trades), settings.MAX_TRADES_PER_DAY))
+            self._override_max_trades = v
+            logger.info(f"[RISK] Override: max_trades = {v} (cap={settings.MAX_TRADES_PER_DAY})")
+        if risk_per_trade_pct is not None:
+            v = max(0.1, min(float(risk_per_trade_pct), settings.RISK_PER_TRADE_PCT))
+            self._override_risk_pct = v
+            logger.info(f"[RISK] Override: risk_per_trade_pct = {v} (cap={settings.RISK_PER_TRADE_PCT})")
+        if max_open_positions is not None:
+            v = max(1, min(int(max_open_positions), settings.MAX_OPEN_POSITIONS))
+            self._override_max_positions = v
+            logger.info(f"[RISK] Override: max_open_positions = {v} (cap={settings.MAX_OPEN_POSITIONS})")
+        return {
+            "max_trades": self._effective_max_trades(),
+            "risk_per_trade_pct": self._effective_risk_pct(),
+            "max_open_positions": self._effective_max_positions(),
+        }
 
     def evaluate(self, signal: TradeSignal) -> TradeSignal | None:
         """
@@ -178,13 +237,13 @@ class RiskManager:
 
         # Max trades per day
         trade_count = self.order_manager.get_todays_trade_count()
-        if trade_count >= settings.MAX_TRADES_PER_DAY:
-            return f"Max trades reached: {trade_count}/{settings.MAX_TRADES_PER_DAY}"
+        if trade_count >= self._effective_max_trades():
+            return f"Max trades reached: {trade_count}/{self._effective_max_trades()}"
 
         # Max concurrent positions
         open_positions = len(self.order_manager.get_open_orders())
-        if open_positions >= settings.MAX_OPEN_POSITIONS:
-            return f"Max open positions: {open_positions}/{settings.MAX_OPEN_POSITIONS}"
+        if open_positions >= self._effective_max_positions():
+            return f"Max open positions: {open_positions}/{self._effective_max_positions()}"
 
         # Sector concentration limit
         if signal is not None and getattr(settings, 'MAX_POSITIONS_PER_SECTOR', 0) > 0:
@@ -257,7 +316,7 @@ class RiskManager:
         Calculate adjusted risk percentage after all multipliers.
         Multiplicative chain: base_risk * vix_mult * kelly_mult * equity_mult * time_mult
         """
-        base_risk = settings.RISK_PER_TRADE_PCT
+        base_risk = self._effective_risk_pct()
 
         # 1. Volatility (VIX) adjustment
         vix_mult = self._get_vix_multiplier()
@@ -273,11 +332,11 @@ class RiskManager:
 
         adjusted = base_risk * vix_mult * kelly_mult * equity_mult * time_mult
 
-        # Clamp: never exceed 150% of base (upper cap guards against runaway
-        # Kelly × VIX stacking). No artificial floor — a severe equity-curve
-        # or time-of-day scale-down MUST be allowed to shrink risk toward 0
-        # (previously `max(base*0.1, ...)` silently neutered drawdown safety).
-        adjusted = max(0.0, min(adjusted, base_risk * 1.5))
+        # Clamp: never exceed 150% of effective base (upper cap guards against
+        # runaway Kelly × VIX stacking), and never exceed the *settings* base
+        # cap either — a runtime override can only tighten, never loosen.
+        hard_cap = min(base_risk * 1.5, settings.RISK_PER_TRADE_PCT * 1.5)
+        adjusted = max(0.0, min(adjusted, hard_cap))
 
         return adjusted
 
@@ -544,9 +603,9 @@ class RiskManager:
             "daily_loss_limit": max_loss,
             "daily_loss_remaining": max_loss - abs(min(daily_pnl, 0)),
             "trades_today": self.order_manager.get_todays_trade_count(),
-            "max_trades": settings.MAX_TRADES_PER_DAY,
+            "max_trades": self._effective_max_trades(),
             "open_positions": len(self.order_manager.get_open_orders()),
-            "max_positions": settings.MAX_OPEN_POSITIONS,
+            "max_positions": self._effective_max_positions(),
             "consecutive_losses": self._consecutive_losses,
             "is_paused": self._paused_until is not None and settings.now_ist() < self._paused_until,
             "intraday_drawdown": self._intraday_drawdown,
