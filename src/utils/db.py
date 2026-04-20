@@ -19,9 +19,21 @@ class TradeDB:
     """SQLite database for trade logging and analysis."""
 
     def __init__(self, db_path: Path = None):
+        import os
+
         self.db_path = db_path or settings.DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        # Restrict parent dir + DB file to owner-only (POSIX). No-op on Windows.
+        try:
+            os.chmod(self.db_path.parent, 0o700)
+        except (OSError, NotImplementedError):
+            pass
         self._init_db()
+        try:
+            if self.db_path.exists():
+                os.chmod(self.db_path, 0o600)
+        except (OSError, NotImplementedError):
+            pass
 
     def _init_db(self):
         """Create tables if they don't exist."""

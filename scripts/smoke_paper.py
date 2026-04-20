@@ -20,7 +20,9 @@ Usage:
 
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -31,6 +33,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # Sandbox the DB and audit before importing settings-consuming modules.
 _TMP = Path(tempfile.mkdtemp(prefix="smoke_"))
+# Guarantee cleanup even on crash — prior code leaked temp dirs on errors.
+atexit.register(shutil.rmtree, _TMP, ignore_errors=True)
 os.environ["AUDIT_LOG_PATH"] = str(_TMP / "audit.jsonl")
 os.environ["KILL_SWITCH_PATH"] = str(_TMP / ".kill_switch")
 os.environ["TRADING_MODE"] = "paper"

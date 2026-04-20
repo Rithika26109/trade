@@ -269,6 +269,8 @@ def is_market_day() -> bool:
 
 def validate_config():
     """Validate critical configuration on startup. Raises ValueError on issues."""
+    import re as _re
+
     errors = []
 
     # Check trading mode
@@ -297,6 +299,16 @@ def validate_config():
     for i in range(len(times) - 1):
         if times[i] >= times[i + 1]:
             errors.append(f"Time ordering invalid: {times[i]} should be before {times[i+1]}")
+
+    # Validate watchlist symbols — defence in depth; symbols flow into API
+    # calls, log formatting, and file paths in some tooling.
+    _sym_re = _re.compile(r"^[A-Z0-9&\-]{1,20}$")
+    for sym in WATCHLIST:
+        if not isinstance(sym, str) or not _sym_re.match(sym):
+            errors.append(
+                f"WATCHLIST entry {sym!r} invalid. Must be 1-20 chars of "
+                "A-Z, 0-9, '&' or '-' (NSE tradingsymbol format)."
+            )
 
     if errors:
         raise ValueError("Configuration errors:\n  - " + "\n  - ".join(errors))

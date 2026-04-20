@@ -17,6 +17,7 @@ from config import settings
 from src.strategy.base import Signal, TradeSignal
 from src.utils.audit import audit
 from src.utils.logger import logger
+from src.utils import kill_switch
 from src.utils.rate_limiter import RateLimiter
 from src.utils.retry import retry_with_backoff
 from src.utils.tick_size import round_to_tick
@@ -108,6 +109,21 @@ class OrderManager:
 
         if signal.quantity <= 0:
             logger.warning(f"Cannot place order with quantity {signal.quantity}")
+            return None
+
+        # Re-check kill-switch at submission point (TOCTOU hardening): the
+        # caller may have decided to trade earlier in the cycle, but the
+        # operator could have engaged the switch between decision and submit.
+        if kill_switch.is_engaged():
+            audit(
+                "order_blocked_kill_switch",
+                symbol=signal.symbol,
+                side=("BUY" if signal.signal == Signal.BUY else "SELL"),
+                qty=signal.quantity,
+            )
+            logger.warning(
+                f"Kill-switch engaged; refusing to place order for {signal.symbol}."
+            )
             return None
 
         # Round stop-loss and target to the instrument's tick size. Choose

@@ -42,6 +42,16 @@ def _audit_path() -> Path:
     else:
         p = Path(settings.LOG_DIR) / "audit" / "audit.jsonl"
     p.parent.mkdir(parents=True, exist_ok=True)
+    # Restrict dir + file to owner on POSIX; no-op elsewhere.
+    try:
+        os.chmod(p.parent, 0o700)
+    except (OSError, NotImplementedError):
+        pass
+    if p.exists():
+        try:
+            os.chmod(p, 0o600)
+        except (OSError, NotImplementedError):
+            pass
     return p
 
 
@@ -69,8 +79,14 @@ def audit(event: str, **fields: Any) -> None:
         line = json.dumps(rec, separators=(",", ":"), ensure_ascii=False)
         path = _audit_path()
         with _LOCK:
+            newly_created = not path.exists()
             with path.open("a", encoding="utf-8") as f:
                 f.write(line + "\n")
+            if newly_created:
+                try:
+                    os.chmod(path, 0o600)
+                except (OSError, NotImplementedError):
+                    pass
     except Exception:
         # Audit MUST NOT break the trading path.
         pass

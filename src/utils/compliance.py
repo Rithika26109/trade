@@ -30,7 +30,11 @@ class ComplianceError(RuntimeError):
 
 
 def validate_algo_id(strict: bool) -> str:
-    """Return sanitised Algo-ID; raise if strict mode and invalid."""
+    """Return sanitised Algo-ID.
+
+    Format is ALWAYS validated (an invalid ALGO_ID is a config bug regardless
+    of mode). ``strict`` only controls whether an empty value is a hard error.
+    """
     tag = (getattr(settings, "ALGO_ID", "") or "").strip()
     if not tag:
         if strict:
@@ -38,14 +42,12 @@ def validate_algo_id(strict: bool) -> str:
         logger.warning("ALGO_ID empty — orders will be untagged (PAPER mode).")
         return ""
     if not _ALGO_ID_RE.match(tag):
-        msg = (
+        # Malformed ALGO_ID is always a hard error — a silent warning in paper
+        # would let a typo make it all the way to live without ever surfacing.
+        raise ComplianceError(
             f"ALGO_ID '{tag}' invalid. Must be 1-20 chars, "
             "alphanumeric or underscore."
         )
-        if strict:
-            raise ComplianceError(msg)
-        logger.warning(msg)
-        return tag[:20]
     return tag
 
 
@@ -67,11 +69,22 @@ def _public_ip(timeout: float = 3.0) -> str | None:
 
 
 def validate_static_ip(strict: bool) -> str | None:
-    """Check that the outbound IP matches STATIC_IP_EXPECTED if set."""
+    """Check that the outbound IP matches STATIC_IP_EXPECTED if set.
+
+    The actual IP is intentionally NOT logged — it is information-disclosure
+    for anyone who reads the log file. We log only PASS/FAIL.
+    """
     expected = (getattr(settings, "STATIC_IP_EXPECTED", "") or "").strip()
     if not expected:
         logger.info("STATIC_IP_EXPECTED not configured — skipping IP pin check.")
         return None
+    # Validate the EXPECTED value format always (config hygiene).
+    try:
+        socket.inet_aton(expected)
+    except OSError:
+        raise ComplianceError(
+            f"STATIC_IP_EXPECTED is not a valid IPv4 address."
+        )
     actual = _public_ip()
     if actual is None:
         msg = "Could not determine public IP — skipping pin check."
@@ -80,26 +93,27 @@ def validate_static_ip(strict: bool) -> str | None:
         logger.warning(msg)
         return None
     if actual != expected:
-        msg = (
-            f"Static-IP check FAILED: expected {expected}, got {actual}. "
-            "SEBI algo framework requires registered IP."
-        )
+        msg = "Static-IP check FAILED (outbound IP does not match STATIC_IP_EXPECTED). SEBI algo framework requires registered IP."
         if strict:
             raise ComplianceError(msg)
         logger.warning(msg)
     else:
-        logger.info(f"Static-IP check OK ({actual}).")
+        logger.info("Static-IP check OK.")
     return actual
 
 
 def startup_compliance_check(mode: str) -> dict:
     """Run all compliance checks. strict == (mode == 'live')."""
     strict = (mode == "live")
+    algo_id = validate_algo_id(strict)
+    ip_ok = validate_static_ip(strict) is not None
     report = {
-        "algo_id": validate_algo_id(strict),
-        "ip": validate_static_ip(strict),
+        "algo_id": algo_id,
+        "ip_pin": "configured" if ip_ok else "not-set-or-skipped",
         "mode": mode,
         "order_rate_limit_per_sec": getattr(settings, "ORDER_RATE_LIMIT_PER_SEC", 8),
     }
+    # NOTE: do not include the actual egress IP in the compliance report —
+    # it gets logged by callers and could leak infra details.
     logger.info(f"[COMPLIANCE] {report}")
     return report

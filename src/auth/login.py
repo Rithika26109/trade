@@ -71,12 +71,27 @@ class ZerodhaAuth:
             return False
 
     def _save_cached_token(self):
-        """Save access token to file for reuse during the day."""
+        """Save access token to file for reuse during the day.
+
+        The token grants full account access until midnight IST, so the file
+        is created with owner-only permissions (0600) and its parent directory
+        with 0700. On POSIX only; chmod is a no-op on Windows.
+        """
         data = {
             "date": str(settings.now_ist().date()),
             "access_token": self.access_token,
         }
+        parent = TOKEN_CACHE_FILE.parent
+        parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.chmod(parent, 0o700)
+        except (OSError, NotImplementedError):
+            pass
         TOKEN_CACHE_FILE.write_text(json.dumps(data))
+        try:
+            os.chmod(TOKEN_CACHE_FILE, 0o600)
+        except (OSError, NotImplementedError):
+            pass
 
     def _get_request_token(self) -> str:
         """
@@ -161,15 +176,12 @@ class ZerodhaAuth:
     def _get_password(self) -> str:
         """
         Get Zerodha password.
-        For security, this should be in .env or prompted at runtime.
-        We don't store passwords in settings — prompt if not set.
+        Always prompt at runtime via getpass — never read from env or disk,
+        so the master password cannot leak via .env backups or process env.
         """
-        password = os.getenv("KITE_PASSWORD", "")
-        if not password:
-            import getpass
+        import getpass
 
-            password = getpass.getpass("Enter Zerodha password: ")
-        return password
+        return getpass.getpass("Enter Zerodha password: ")
 
     def get_kite(self) -> KiteConnect:
         """Return the authenticated KiteConnect instance."""

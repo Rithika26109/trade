@@ -1,5 +1,6 @@
 # Secrets
 config/.env
+config/.access_token
 .env
 
 # Python

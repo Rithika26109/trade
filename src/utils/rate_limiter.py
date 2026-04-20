@@ -15,13 +15,27 @@ import time
 class RateLimiter:
     """Thread-safe sliding-window rate limiter."""
 
+    # Hard ceiling: Zerodha rejects beyond 10 req/sec per API key (SEBI algo
+    # framework also caps personal-use at 10/sec).
+    ZERODHA_HARD_CAP = 10
+
     def __init__(self, max_calls: int, period: float = 1.0):
         """
         Args:
-            max_calls: Maximum number of calls allowed within the period
+            max_calls: Maximum number of calls allowed within the period.
+                Clamped to ZERODHA_HARD_CAP regardless of config.
             period: Time window in seconds (default 1.0)
         """
-        self.max_calls = max_calls
+        if max_calls > self.ZERODHA_HARD_CAP:
+            import warnings
+
+            warnings.warn(
+                f"RateLimiter max_calls={max_calls} exceeds Zerodha cap; "
+                f"clamping to {self.ZERODHA_HARD_CAP}.",
+                stacklevel=2,
+            )
+            max_calls = self.ZERODHA_HARD_CAP
+        self.max_calls = max(1, max_calls)
         self.period = period
         self._calls: list[float] = []
         self._lock = threading.Lock()

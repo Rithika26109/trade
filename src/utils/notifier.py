@@ -5,10 +5,38 @@ Sends trade alerts and daily reports to Telegram.
 Optional — works without Telegram configured.
 """
 
+import re
+
 import requests
 
 from config import settings
 from src.utils.logger import logger
+
+
+# Patterns redacted before any outbound message. Covers k=v and json-style.
+_SECRET_KEYS = (
+    "api_key",
+    "api_secret",
+    "access_token",
+    "request_token",
+    "totp",
+    "totp_secret",
+    "password",
+    "secret",
+    "token",
+    "bot_token",
+    "chat_id",
+)
+_KV_RE = re.compile(
+    r"(?i)\b(" + "|".join(_SECRET_KEYS) + r")\s*[=:]\s*['\"]?([^\s,'\"}]+)"
+)
+
+
+def redact(text: str) -> str:
+    """Redact common secret patterns in free-form text before transmission."""
+    if not text:
+        return text
+    return _KV_RE.sub(lambda m: f"{m.group(1)}=***", str(text))
 
 
 class Notifier:
@@ -26,10 +54,11 @@ class Notifier:
             logger.info("Telegram notifications disabled")
 
     def send(self, message: str):
-        """Send a message to Telegram."""
+        """Send a message to Telegram (secrets redacted)."""
         if not self.enabled:
             return
 
+        message = redact(message)
         try:
             url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
             payload = {
