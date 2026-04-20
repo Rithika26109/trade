@@ -13,7 +13,7 @@ A zero-to-running checklist for installing and operating the bot on a fresh mach
 | **RAM** | 2 GB free |
 | **Disk** | 500 MB for code + ~50 MB/month of logs |
 | **Network** | Stable internet, **static public IP** (required for SEBI live compliance) |
-| **Zerodha** | Active trading account + **Kite Connect developer app** (Rs 2,000/month for live) |
+| **Zerodha** | Active trading account + **Kite Connect developer app** (₹500/month Connect tier — required for historical candles + WebSocket) |
 
 ---
 
@@ -95,7 +95,7 @@ python3 -c "import kiteconnect, pandas, pandas_ta; print('deps OK')"
    - **App name:** anything, e.g., `my-intraday-bot`
    - **Redirect URL:** `http://127.0.0.1/` (for personal use)
    - **Postback URL:** leave blank
-4. Pay the monthly subscription (required for live; free for 1 day trial)
+4. Subscribe to the **Connect tier (₹500/month)** — this bot needs historical candles and WebSocket streaming, which the free Personal tier does not include. Zerodha offers a free 1-day Connect trial on signup if you want to test auth before paying.
 5. Copy down:
    - `api_key`
    - `api_secret`
