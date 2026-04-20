@@ -17,18 +17,27 @@ from src.strategy.confluence import calculate_confluence
 from src.strategy.orb import ORBStrategy
 from src.strategy.rsi_ema import RSIEMAStrategy
 from src.strategy.vwap_supertrend import VWAPSupertrendStrategy
+from src.strategy.regime_tracker import RegimePerformanceTracker
 from src.utils.logger import logger
 
 
 class StrategyOrchestrator(BaseStrategy):
     """Runs all strategies and selects the best signal by confluence."""
 
-    def __init__(self):
+    def __init__(self, tracker: RegimePerformanceTracker | None = None):
         self.strategies: list[BaseStrategy] = [
             ORBStrategy(),
             RSIEMAStrategy(),
             VWAPSupertrendStrategy(),
         ]
+        # Lazy: only build a tracker if enabled; can be injected for tests.
+        self.tracker: RegimePerformanceTracker | None = tracker
+        if self.tracker is None and getattr(settings, "REGIME_TRACKER_ENABLED", True):
+            try:
+                self.tracker = RegimePerformanceTracker()
+            except Exception as e:
+                logger.debug(f"[MULTI] tracker init failed: {e}")
+                self.tracker = None
 
     @property
     def name(self) -> str:
@@ -48,18 +57,35 @@ class StrategyOrchestrator(BaseStrategy):
         symbol: str,
         df_htf: pd.DataFrame = None,
         regime: MarketRegime = None,
+        vol_regime=None,
     ) -> TradeSignal:
         """
         Run all strategies and return the best signal.
-        Multi-strategy agreement boosts confidence.
+        Multi-strategy agreement boosts confidence. When a regime tracker is
+        present, each strategy's confluence is weighted by its historical
+        (strategy, regime, vol_regime) edge; blacklisted cells are dropped.
         """
         signals: list[TradeSignal] = []
+
+        dir_key = regime.value if regime is not None else "UNKNOWN"
+        vol_key = vol_regime.value if vol_regime is not None else "NORMAL"
 
         for strategy in self.strategies:
             try:
                 sig = strategy.analyze(df, symbol, df_htf=df_htf, regime=regime)
-                if sig.signal != Signal.HOLD:
-                    signals.append(sig)
+                if sig.signal == Signal.HOLD:
+                    continue
+                # Regime-adaptive gating/weighting
+                if self.tracker is not None:
+                    if self.tracker.is_blacklisted(strategy.name, dir_key, vol_key):
+                        logger.debug(
+                            f"[MULTI] {strategy.name} blacklisted for "
+                            f"({dir_key},{vol_key}); skipping"
+                        )
+                        continue
+                    weight = self.tracker.weight_for(strategy.name, dir_key, vol_key)
+                    sig.confluence_score = sig.confluence_score * weight
+                signals.append(sig)
             except Exception as e:
                 logger.debug(f"Strategy {strategy.name} error on {symbol}: {e}")
 

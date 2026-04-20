@@ -43,6 +43,9 @@ class MarketData:
         self._instruments_cache: dict[str, dict] = {}
         self._hist_rate_limiter = RateLimiter(max_calls=3, period=1.0)  # 3 req/s for historical
         self._api_rate_limiter = RateLimiter(max_calls=10, period=1.0)  # 10 req/s general
+        # Cache for multi-day HTF frames keyed by (symbol, interval) → (date, df).
+        # Refresh once per calendar day to avoid re-fetching on every cycle.
+        self._htf_cache: dict[tuple[str, str], tuple[object, pd.DataFrame]] = {}
 
     def load_instruments(self, exchange: str = "NSE"):
         """Load and cache instrument list for quick symbol→token lookup."""
@@ -151,17 +154,41 @@ class MarketData:
         self, symbol: str, exchange: str = "NSE"
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
-        Fetch today's candles and return both 5-min and 15-min DataFrames.
-        Resamples 5-min to 15-min to avoid extra API calls.
+        Fetch today's 5-min candles and return (5min, 15min) frames.
 
-        Returns:
-            (df_5min, df_15min) tuple of DataFrames
+        Unlike a pure resample of today's data, the 15-min frame is built
+        from ~5 days of history so EMA/ADX/Supertrend on the HTF frame have
+        enough warm-up to match backtest behaviour (where indicators were
+        computed over the full series before slicing).
         """
         df_5min = self.get_todays_candles(symbol, interval="5minute", exchange=exchange)
+        df_htf = self.get_htf_data(symbol, interval="15minute", days=5, exchange=exchange)
         if df_5min.empty:
-            return df_5min, pd.DataFrame()
-        df_15min = resample_to_htf(df_5min, interval="15min")
-        return df_5min, df_15min
+            return df_5min, df_htf
+        return df_5min, df_htf
+
+    def get_htf_data(
+        self,
+        symbol: str,
+        interval: str = "15minute",
+        days: int = 5,
+        exchange: str = "NSE",
+    ) -> pd.DataFrame:
+        """
+        Fetch higher-timeframe bars with enough history for indicator warm-up.
+        Cached per calendar day — subsequent calls within the same day reuse
+        the fetched frame, so this is safe to call every trading cycle.
+        """
+        cache_key = (f"{exchange}:{symbol}", interval)
+        today = now_ist().date()
+        cached = self._htf_cache.get(cache_key)
+        if cached and cached[0] == today and not cached[1].empty:
+            return cached[1]
+
+        df = self.get_historical_data(symbol, interval=interval, days=days, exchange=exchange)
+        if not df.empty:
+            self._htf_cache[cache_key] = (today, df)
+        return df
 
     def get_opening_range(
         self, symbol: str, minutes: int = 15, exchange: str = "NSE"
@@ -189,3 +216,65 @@ class MarketData:
             "low": float(range_df["low"].min()),
             "open": float(range_df["open"].iloc[0]),
         }
+
+    def get_prev_close(self, symbol: str, exchange: str = "NSE") -> float | None:
+        """
+        Fetch the previous trading day's close. Uses `kite.quote()` which
+        returns `ohlc.close` = prev close for intraday contexts.
+        Falls back to daily historical if quote is unavailable.
+        """
+        try:
+            quote = self.get_quote([symbol], exchange=exchange)
+            key = f"{exchange}:{symbol}"
+            if key in quote:
+                ohlc = quote[key].get("ohlc", {})
+                prev_close = ohlc.get("close")
+                if prev_close and prev_close > 0:
+                    return float(prev_close)
+        except Exception as e:
+            logger.debug(f"get_prev_close quote fallback for {symbol}: {e}")
+
+        # Fallback: last daily candle
+        try:
+            df = self.get_historical_data(symbol, interval="day", days=5, exchange=exchange)
+            if df.empty:
+                return None
+            today = now_ist().date()
+            prior = df[df["date"].dt.date < today]
+            if prior.empty:
+                return None
+            return float(prior["close"].iloc[-1])
+        except Exception as e:
+            logger.warning(f"get_prev_close failed for {symbol}: {e}")
+            return None
+
+    def get_circuit_limits(self, symbol: str, exchange: str = "NSE") -> dict | None:
+        """
+        Return today's lower/upper circuit band for a symbol from kite.quote().
+        Signals whose stop-loss falls outside the band are un-fillable and
+        must be rejected by risk management.
+
+        Returns:
+            {"lower": float, "upper": float} or None if unavailable.
+        """
+        try:
+            quote = self.get_quote([symbol], exchange=exchange)
+            key = f"{exchange}:{symbol}"
+            if key not in quote:
+                return None
+            q = quote[key]
+            lower = q.get("lower_circuit_limit")
+            upper = q.get("upper_circuit_limit")
+            if lower is None or upper is None:
+                return None
+            return {"lower": float(lower), "upper": float(upper)}
+        except Exception as e:
+            logger.debug(f"get_circuit_limits failed for {symbol}: {e}")
+            return None
+
+    def get_tick_size(self, symbol: str, exchange: str = "NSE") -> float:
+        """Look up tick_size from the loaded instruments cache (default 0.05)."""
+        from src.utils.tick_size import get_tick_size as _lookup
+        if not self._instruments_cache:
+            self.load_instruments(exchange)
+        return _lookup(self._instruments_cache, symbol, exchange)

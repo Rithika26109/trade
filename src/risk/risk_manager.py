@@ -23,6 +23,13 @@ from src.strategy.base import TradeSignal, Signal
 from src.utils.logger import logger
 
 
+def _isnan(x) -> bool:
+    try:
+        return x != x  # NaN is never equal to itself
+    except Exception:
+        return False
+
+
 class RiskManager:
     """Enforces all risk management rules before allowing a trade."""
 
@@ -41,6 +48,25 @@ class RiskManager:
 
         # Volatility regime (set at market open)
         self._vix_level: float | None = None
+
+        # Optional reference to MarketData for circuit-limit checks.
+        # Wired by main.py after both components are constructed.
+        self.market_data = None
+
+        # Phase 3E: restore persisted intraday risk state (survives crash-restart)
+        if self.db and getattr(settings, "PERSIST_INTRADAY_HWM", False):
+            try:
+                state = self.db.load_risk_state()
+                if state:
+                    self._intraday_high_water_mark = state.get("hwm", 0.0)
+                    self._intraday_drawdown = state.get("drawdown", 0.0)
+                    logger.info(
+                        f"[RISK] Restored persisted risk state: "
+                        f"HWM={self._intraday_high_water_mark:.2f}, "
+                        f"DD={self._intraday_drawdown:.2f}"
+                    )
+            except Exception:
+                pass
 
     def evaluate(self, signal: TradeSignal) -> TradeSignal | None:
         """
@@ -68,13 +94,40 @@ class RiskManager:
                 )
                 return None
 
-        # ── Check risk/reward ratio ──
-        if signal.risk_reward_ratio < settings.MIN_RISK_REWARD_RATIO:
+        # ── Check risk/reward ratio (net of round-trip costs) ──
+        rr_net = self._net_rr(signal)
+        if rr_net < settings.MIN_RISK_REWARD_RATIO:
             logger.warning(
                 f"[RISK] Trade REJECTED for {signal.symbol}: "
-                f"R:R = {signal.risk_reward_ratio:.2f} < {settings.MIN_RISK_REWARD_RATIO}"
+                f"R:R(net) = {rr_net:.2f} < {settings.MIN_RISK_REWARD_RATIO} "
+                f"(gross={signal.risk_reward_ratio:.2f})"
             )
             return None
+
+        # ── Check circuit band ──
+        if getattr(settings, "ENABLE_CIRCUIT_LIMIT_CHECK", False) and self.market_data:
+            band = None
+            try:
+                band = self.market_data.get_circuit_limits(signal.symbol)
+            except Exception:
+                band = None
+            if band:
+                lo, hi = band["lower"], band["upper"]
+                # Stop must lie inside the band, and price itself can't be
+                # frozen at a circuit (price == limit → un-tradeable).
+                if not (lo < signal.stop_loss < hi):
+                    logger.warning(
+                        f"[RISK] Trade REJECTED for {signal.symbol}: "
+                        f"SL {signal.stop_loss:.2f} outside circuit band "
+                        f"[{lo:.2f}, {hi:.2f}]"
+                    )
+                    return None
+                if signal.price <= lo or signal.price >= hi:
+                    logger.warning(
+                        f"[RISK] Trade REJECTED for {signal.symbol}: "
+                        f"price {signal.price:.2f} at circuit limit"
+                    )
+                    return None
 
         # ── Calculate position size ──
         quantity = self._calculate_position_size(signal)
@@ -83,6 +136,18 @@ class RiskManager:
             return None
 
         signal.quantity = quantity
+
+        # ── Fat-finger guard ──
+        ff_reject = self._fat_finger_check(signal)
+        if ff_reject:
+            logger.warning(f"[RISK] Trade REJECTED for {signal.symbol}: {ff_reject}")
+            return None
+
+        # ── Correlation limit (Phase 3E) ──
+        corr_reject = self._correlation_check(signal)
+        if corr_reject:
+            logger.warning(f"[RISK] Trade REJECTED for {signal.symbol}: {corr_reject}")
+            return None
 
         logger.info(
             f"[RISK] Trade APPROVED for {signal.symbol}: "
@@ -208,8 +273,11 @@ class RiskManager:
 
         adjusted = base_risk * vix_mult * kelly_mult * equity_mult * time_mult
 
-        # Clamp: never less than 10% or more than 150% of base
-        adjusted = max(base_risk * 0.1, min(adjusted, base_risk * 1.5))
+        # Clamp: never exceed 150% of base (upper cap guards against runaway
+        # Kelly × VIX stacking). No artificial floor — a severe equity-curve
+        # or time-of-day scale-down MUST be allowed to shrink risk toward 0
+        # (previously `max(base*0.1, ...)` silently neutered drawdown safety).
+        adjusted = max(0.0, min(adjusted, base_risk * 1.5))
 
         return adjusted
 
@@ -239,46 +307,40 @@ class RiskManager:
 
         min_trades = getattr(settings, 'KELLY_MIN_TRADES', 20)
 
-        # Get recent trades
+        # Session-level closed orders
         all_orders = self.order_manager.orders
         closed_orders = [o for o in all_orders if not o.is_open and o.pnl != 0]
+        session_pnls = [o.pnl for o in closed_orders]
 
-        # Also check historical from DB
-        if self.db and len(closed_orders) < min_trades:
+        # Augment with DB history when configured
+        pnls = list(session_pnls)
+        if self.db and getattr(settings, "KELLY_USE_DB_HISTORY", False):
             try:
-                recent_db = self.db.get_daily_summaries(30)
-                total_hist_trades = sum(d.get("total_trades", 0) for d in recent_db)
-                if total_hist_trades < min_trades:
-                    return 1.0  # Not enough history
+                db_trades = self.db.get_closed_trades(limit=500)
+                pnls.extend(t["pnl"] for t in db_trades if t.get("pnl", 0) != 0)
             except Exception:
                 pass
 
-        if len(closed_orders) < min_trades:
+        if len(pnls) < min_trades:
             return 1.0
 
-        # Calculate win rate and win/loss ratio
-        wins = [o for o in closed_orders if o.pnl > 0]
-        losses = [o for o in closed_orders if o.pnl < 0]
-
+        wins = [p for p in pnls if p > 0]
+        losses = [p for p in pnls if p < 0]
         if not wins or not losses:
             return 1.0
 
-        win_rate = len(wins) / len(closed_orders)
-        avg_win = sum(o.pnl for o in wins) / len(wins)
-        avg_loss = abs(sum(o.pnl for o in losses) / len(losses))
+        win_rate = len(wins) / len(pnls)
+        avg_win = sum(wins) / len(wins)
+        avg_loss = abs(sum(losses) / len(losses))
 
         if avg_loss <= 0:
             return 1.0
 
         win_loss_ratio = avg_win / avg_loss
-
         # Kelly fraction: K = W - (1-W)/R
         kelly = win_rate - ((1 - win_rate) / win_loss_ratio)
-
-        # Half-Kelly for safety
-        half_kelly_mult = max(0.25, min(kelly / 2 + 0.5, 1.5))
-
-        return half_kelly_mult
+        # Half-Kelly for safety, clamped
+        return max(0.25, min(kelly / 2 + 0.5, 1.5))
 
     def _get_equity_curve_multiplier(self) -> float:
         """Reduce size during drawdown periods."""
@@ -347,6 +409,106 @@ class RiskManager:
             self._intraday_high_water_mark = total_pnl
 
         self._intraday_drawdown = self._intraday_high_water_mark - total_pnl
+
+        # Phase 3E: persist so the circuit breaker survives a restart
+        if self.db and getattr(settings, "PERSIST_INTRADAY_HWM", False):
+            try:
+                self.db.save_risk_state(
+                    hwm=self._intraday_high_water_mark,
+                    drawdown=self._intraday_drawdown,
+                    daily_loss=min(0.0, total_pnl),
+                )
+            except Exception:
+                pass
+
+    # ── Phase 3E helpers ──
+    def _net_rr(self, signal: TradeSignal) -> float:
+        """Risk:reward net of round-trip costs (brokerage+STT+slippage proxy)."""
+        try:
+            gross = signal.risk_reward_ratio
+        except Exception:
+            return 0.0
+        costs_bps = getattr(settings, "COSTS_ROUND_TRIP_BPS", 0)
+        if costs_bps <= 0 or signal.price <= 0:
+            return gross
+        cost_per_share = signal.price * (costs_bps / 10000.0)
+        risk = signal.risk_per_share
+        reward = abs(signal.target - signal.price) if signal.target else 0.0
+        if risk <= 0 or reward <= 0:
+            return gross
+        net_reward = max(0.0, reward - cost_per_share)
+        net_risk = risk + cost_per_share
+        return net_reward / net_risk if net_risk > 0 else 0.0
+
+    def _fat_finger_check(self, signal: TradeSignal) -> str | None:
+        """Hard cap on notional size + risk. Returns rejection reason or None."""
+        max_notional_pct = getattr(settings, "FAT_FINGER_MAX_NOTIONAL_PCT", 0)
+        if max_notional_pct <= 0:
+            return None
+        notional = signal.quantity * signal.price
+        notional_cap = self.capital * (max_notional_pct / 100)
+        if notional > notional_cap:
+            return (
+                f"fat-finger: notional Rs {notional:.0f} > cap Rs {notional_cap:.0f}"
+                f" ({max_notional_pct}% of capital)"
+            )
+        # Risk cap = 2% of capital (hard, independent of risk_pct scaling)
+        risk_amount = signal.quantity * signal.risk_per_share
+        risk_cap = self.capital * 0.02
+        if risk_amount > risk_cap:
+            return (
+                f"fat-finger: trade risk Rs {risk_amount:.0f} > 2% cap Rs {risk_cap:.0f}"
+            )
+        return None
+
+    def _correlation_check(self, signal: TradeSignal) -> str | None:
+        """Reject if avg daily-return correlation with open positions exceeds threshold."""
+        if not getattr(settings, "CORRELATION_LIMIT_ENABLED", False):
+            return None
+        if self.market_data is None:
+            return None
+        threshold = getattr(settings, "CORRELATION_LIMIT_THRESHOLD", 0.7)
+        lookback = getattr(settings, "CORRELATION_LOOKBACK_DAYS", 20)
+
+        open_orders = self.order_manager.get_open_orders()
+        open_syms = [o.symbol for o in open_orders if o.symbol != signal.symbol]
+        if not open_syms:
+            return None
+
+        try:
+            new_ret = self._daily_returns(signal.symbol, lookback)
+            if new_ret is None or len(new_ret) < 5:
+                return None
+            corrs = []
+            for sym in open_syms:
+                r = self._daily_returns(sym, lookback)
+                if r is None or len(r) < 5:
+                    continue
+                n = min(len(new_ret), len(r))
+                c = new_ret.tail(n).corr(r.tail(n))
+                if c is not None and not _isnan(c):
+                    corrs.append(abs(c))
+            if not corrs:
+                return None
+            avg_corr = sum(corrs) / len(corrs)
+            if avg_corr > threshold:
+                return (
+                    f"correlation {avg_corr:.2f} > {threshold:.2f} "
+                    f"with open book {open_syms}"
+                )
+        except Exception as e:
+            logger.debug(f"[RISK] correlation check error: {e}")
+        return None
+
+    def _daily_returns(self, symbol: str, days: int):
+        """Fetch daily % returns series for correlation calc. Returns None on failure."""
+        try:
+            df = self.market_data.get_historical_data(symbol, interval="day", days=days + 2)
+            if df is None or df.empty or "close" not in df.columns:
+                return None
+            return df["close"].pct_change().dropna()
+        except Exception:
+            return None
 
     def record_trade_result(self, pnl: float):
         """Record a completed trade's P&L for circuit breaker tracking."""

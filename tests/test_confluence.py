@@ -57,20 +57,14 @@ class TestConfluenceScoring:
 
         assert isinstance(result, ConfluenceScore)
         assert result.total > 0
-        expected_keys = [
-            "trend_alignment",
-            "volume",
-            "vwap_position",
-            "rsi_momentum",
-            "support_resistance",
-        ]
+        expected_keys = ["trend", "momentum", "location", "participation"]
         for k in expected_keys:
             assert k in result.components, f"Missing component: {k}"
 
-        # Each component 0-20, total 0-100
+        # Each axis 0-25, total 0-100
         assert 0 <= result.total <= 100
         for v in result.components.values():
-            assert 0 <= v <= 20
+            assert 0 <= v <= 25
 
     def test_confluence_scoring_sell(self):
         """SELL signal produces a score with proper component keys."""
@@ -79,23 +73,27 @@ class TestConfluenceScoring:
 
         assert isinstance(result, ConfluenceScore)
         assert result.total > 0
-        assert "vwap_position" in result.components
+        assert "location" in result.components
 
     def test_volume_scoring(self):
-        """High volume relative to average -> higher volume score."""
-        # Low volume baseline
-        df_low_vol = _make_confluence_df(volume=500_000)
-        score_low = calculate_confluence(Signal.BUY, df_low_vol)
+        """High volume relative to average -> higher participation score."""
+        rng = np.random.default_rng(7)
 
-        # High volume: 2x what would be the average
-        df_high_vol = _make_confluence_df(volume=500_000)
-        # Set the last candle's volume to 3x average
-        df_high_vol.loc[df_high_vol.index[-1], "volume"] = 3_000_000
-        score_high = calculate_confluence(Signal.BUY, df_high_vol)
+        def _with_noisy_vol(last_vol: int):
+            df = _make_confluence_df(volume=500_000)
+            noise = rng.integers(-50_000, 50_000, size=len(df))
+            df["volume"] = (df["volume"].values + noise).astype(int)
+            df.loc[df.index[-1], "volume"] = last_vol
+            return df
 
-        assert score_high.components["volume"] > score_low.components["volume"], (
-            f"High vol ({score_high.components['volume']}) should score higher "
-            f"than low vol ({score_low.components['volume']})"
+        # Low: last bar in-line with baseline ~500k
+        score_low = calculate_confluence(Signal.BUY, _with_noisy_vol(500_000))
+        # High: last bar 3x baseline -> high z-score
+        score_high = calculate_confluence(Signal.BUY, _with_noisy_vol(3_000_000))
+
+        assert score_high.components["participation"] > score_low.components["participation"], (
+            f"High vol ({score_high.components['participation']}) should score higher "
+            f"than low vol ({score_low.components['participation']})"
         )
 
     def test_vwap_alignment_buy(self):
@@ -106,10 +104,13 @@ class TestConfluenceScoring:
         score_above = calculate_confluence(Signal.BUY, df_above)
         score_below = calculate_confluence(Signal.BUY, df_below)
 
-        assert score_above.components["vwap_position"] > score_below.components["vwap_position"]
+        assert score_above.components["location"] > score_below.components["location"]
 
     def test_no_htf_gives_neutral_trend(self):
-        """Without HTF data, trend_alignment should be neutral (10)."""
+        """Without HTF data or regime, trend axis should be neutral (12.5)."""
         df = _make_confluence_df()
+        # Drop adx so there is literally no trend info
+        if "adx" in df.columns:
+            df = df.drop(columns=["adx"])
         result = calculate_confluence(Signal.BUY, df, df_htf=None, regime=None)
-        assert result.components["trend_alignment"] == 10
+        assert result.components["trend"] == 12.5

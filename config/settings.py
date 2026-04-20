@@ -118,6 +118,33 @@ ENABLE_TIME_SCALING = True
 # ── Paper Trading ──
 PAPER_SLIPPAGE_PCT = 0.05  # 0.05% slippage simulation for paper trades
 
+# ── SEBI Algo-ID (April 2026 compliance) ──
+# A short tag attached to every live order for broker/exchange audit trail.
+# Kite's `tag` field is max 20 chars, alphanumeric + underscore.
+ALGO_ID = os.getenv("ALGO_ID", "ALGO01")
+
+# ── Phase 4: SEBI compliance & ops ──
+# Static IP pin: the egress IP registered with your broker. If empty,
+# the startup check is skipped. In live mode a mismatch halts the bot.
+STATIC_IP_EXPECTED = os.getenv("STATIC_IP_EXPECTED", "")
+# Personal-use algos must stay below 10 orders/sec. Leave headroom.
+ORDER_RATE_LIMIT_PER_SEC = int(os.getenv("ORDER_RATE_LIMIT_PER_SEC", "8"))
+# Append-only JSONL audit trail. Empty = default logs/audit/audit.jsonl.
+AUDIT_LOG_PATH = os.getenv("AUDIT_LOG_PATH", "")
+# Kill-switch sentinel file. Empty = <BASE_DIR>/.kill_switch.
+KILL_SWITCH_PATH = os.getenv("KILL_SWITCH_PATH", "")
+
+# ── Broker Order Safety ──
+# Reject signals whose stop-loss is beyond today's circuit band (un-fillable).
+ENABLE_CIRCUIT_LIMIT_CHECK = True
+# Reconcile in-memory position state against kite.positions() on startup
+# and every N trading cycles. 0 disables periodic reconciliation.
+BROKER_RECONCILE_CYCLES = 6  # ~every 30 min on 5-min timeframe
+
+# ── Retry / Backoff for broker calls ──
+BROKER_RETRY_ATTEMPTS = 3
+BROKER_RETRY_INITIAL_DELAY = 0.5  # seconds
+
 # ── Trading Hours (IST) ──
 MARKET_OPEN = "09:15"
 TRADING_START = "09:30"  # Start after opening range collected
@@ -144,6 +171,42 @@ WATCHLIST = [
 MIN_VOLUME = 1_000_000  # Minimum average daily volume
 MIN_PRICE = 100  # Minimum stock price (Rs)
 MAX_PRICE = 5000  # Maximum stock price (Rs)
+
+# ── Scanner (Phase 3A) ──
+SCANNER_TOP_N = 5                 # Only trade the top-N ranked candidates
+SCANNER_VOLUME_WEIGHT = 0.20
+SCANNER_VOLATILITY_WEIGHT = 0.20
+SCANNER_MOMENTUM_WEIGHT = 0.25
+SCANNER_RS_WEIGHT = 0.20
+SCANNER_SECTOR_WEIGHT = 0.15
+SCANNER_DROP_CIRCUIT_FROZEN = True     # skip stocks frozen at circuit today
+SCANNER_MIN_TURNOVER_CR = 5.0          # Rs crore/day minimum turnover (price*volume)
+SCANNER_MAX_SPREAD_BPS = 5.0           # max (ask-bid)/mid in basis points; 0 disables
+
+# ── Phase 3C: Volatility Regime ──
+ENABLE_VOLATILITY_REGIME = True
+VOL_REGIME_LOOKBACK_DAYS = 20          # ATR% percentile window
+VOL_REGIME_LOW_PCT = 33                # <=33rd pctile = LOW
+VOL_REGIME_HIGH_PCT = 67               # >=67th pctile = HIGH ; else NORMAL
+
+# ── Phase 3C: Regime performance tracker ──
+REGIME_TRACKER_ENABLED = True
+REGIME_TRACKER_MIN_TRADES = 10         # min trades before weighting kicks in
+REGIME_TRACKER_WINDOW = 100            # rolling trade window per cell
+REGIME_BLACKLIST_WR = 0.40             # below this WR → blacklist cell
+REGIME_BLACKLIST_MIN_TRADES = 30       # only blacklist after this many trades
+
+# ── Phase 3E: Risk upgrades ──
+CORRELATION_LIMIT_ENABLED = True
+CORRELATION_LIMIT_THRESHOLD = 0.7      # avg corr with open positions
+CORRELATION_LOOKBACK_DAYS = 20
+KELLY_USE_DB_HISTORY = True            # include DB-closed trades in Kelly
+COSTS_ROUND_TRIP_BPS = 8.0             # brokerage+STT+slippage proxy (bps each way-sum)
+FAT_FINGER_MAX_NOTIONAL_PCT = 40.0     # absolute hard cap notional % of capital
+PERSIST_INTRADAY_HWM = True            # persist HWM + daily_loss across restart
+
+# ── Phase 3D: ML filter (opt-in, not implemented yet) ──
+USE_ML_FILTER = False
 
 # ── Notifications ──
 TELEGRAM_ENABLED = False

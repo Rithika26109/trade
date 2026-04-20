@@ -56,6 +56,21 @@ class StockScanner:
 
         # Sort by total score (higher is better)
         candidates.sort(key=lambda x: x["total_score"], reverse=True)
+
+        # Drop stocks frozen at circuit today
+        if getattr(settings, "SCANNER_DROP_CIRCUIT_FROZEN", True):
+            candidates = [c for c in candidates if not self._is_circuit_frozen(c["symbol"])]
+
+        # Optional spread filter (requires live quote; best-effort)
+        max_spread_bps = getattr(settings, "SCANNER_MAX_SPREAD_BPS", 0)
+        if max_spread_bps > 0:
+            candidates = [c for c in candidates if self._spread_ok(c["symbol"], max_spread_bps)]
+
+        # Top-N cutoff
+        top_n = getattr(settings, "SCANNER_TOP_N", 0)
+        if top_n and top_n > 0:
+            candidates = candidates[:top_n]
+
         selected = [c["symbol"] for c in candidates]
 
         # Log top candidates with details
@@ -98,6 +113,13 @@ class StockScanner:
         if avg_volume < settings.MIN_VOLUME:
             return None
         volume_score = min(avg_volume / settings.MIN_VOLUME, 5)
+
+        # Turnover filter (Rs crore/day = price * avg_volume / 1e7)
+        min_turnover_cr = getattr(settings, "SCANNER_MIN_TURNOVER_CR", 0)
+        if min_turnover_cr > 0:
+            turnover_cr = (price * avg_volume) / 1e7
+            if turnover_cr < min_turnover_cr:
+                return None
 
         # Volatility (ATR) score
         df["tr"] = pd.concat([
@@ -180,3 +202,45 @@ class StockScanner:
             + candidate["rs_score"] * weights["rs"]
             + candidate["sector_score"] * weights["sector"]
         )
+
+    def _is_circuit_frozen(self, symbol: str) -> bool:
+        """Return True if the stock is frozen at today's circuit limit (price == upper/lower)."""
+        try:
+            band = self.market_data.get_circuit_limits(symbol)
+            if not band:
+                return False
+            # Use last-traded price via quote / LTP helpers
+            ltp = None
+            if hasattr(self.market_data, "get_ltp"):
+                ltp = self.market_data.get_ltp(symbol)
+            if ltp is None or ltp <= 0:
+                return False
+            lo, hi = band["lower"], band["upper"]
+            # Within 0.05% of circuit = frozen
+            tol = max(0.05, lo * 0.0005)
+            return (ltp <= lo + tol) or (ltp >= hi - tol)
+        except Exception:
+            return False
+
+    def _spread_ok(self, symbol: str, max_bps: float) -> bool:
+        """Best-effort bid/ask spread check. Pass-through when data unavailable."""
+        try:
+            if not hasattr(self.market_data, "get_quote"):
+                return True
+            q = self.market_data.get_quote(symbol)
+            if not q:
+                return True
+            depth = q.get("depth") or {}
+            bids = depth.get("buy") or []
+            asks = depth.get("sell") or []
+            if not bids or not asks:
+                return True
+            best_bid = bids[0].get("price", 0)
+            best_ask = asks[0].get("price", 0)
+            if best_bid <= 0 or best_ask <= 0:
+                return True
+            mid = (best_bid + best_ask) / 2
+            spread_bps = (best_ask - best_bid) / mid * 10000
+            return spread_bps <= max_bps
+        except Exception:
+            return True

@@ -29,7 +29,7 @@ from src.data.market_data import MarketData, resample_to_htf
 from src.data.websocket import TickerManager
 from src.execution.order_manager import OrderManager
 from src.execution.position_manager import PositionManager
-from src.indicators.indicators import add_all_indicators
+from src.indicators.indicators import add_all_indicators, drop_incomplete_last_bar
 from src.indicators.market_regime import detect_regime, MarketRegime
 from src.risk.risk_manager import RiskManager
 from src.scanner.stock_scanner import StockScanner
@@ -41,6 +41,9 @@ from src.strategy.vwap_supertrend import VWAPSupertrendStrategy
 from src.utils.db import TradeDB
 from src.utils.logger import logger
 from src.utils.notifier import Notifier
+from src.utils.audit import audit
+from src.utils.compliance import ComplianceError, startup_compliance_check
+from src.utils import kill_switch
 
 
 class TradingBot:
@@ -68,6 +71,9 @@ class TradingBot:
         self.todays_watchlist: list[str] = []
         self.instrument_tokens: dict[str, int] = {}  # symbol → token
         self.token_to_symbol: dict[int, str] = {}  # token → symbol
+        # Phase 3C: last regime observed per symbol (for outcome attribution)
+        self._last_dir_regime: dict[str, str] = {}
+        self._last_vol_regime: dict[str, str] = {}
 
     def setup(self):
         """Initialize all components."""
@@ -77,6 +83,23 @@ class TradingBot:
 
         # ── Validate config ──
         settings.validate_config()
+
+        # ── SEBI compliance gate (Phase 4) ──
+        try:
+            compliance = startup_compliance_check(self.mode)
+        except ComplianceError as ce:
+            logger.error(f"[COMPLIANCE] Halting: {ce}")
+            audit("compliance_failed", error=str(ce), mode=self.mode)
+            sys.exit(3)
+
+        # ── Fail fast if kill-switch is already engaged ──
+        if kill_switch.is_engaged():
+            reason = kill_switch.reason() or "pre-existing kill-switch"
+            logger.error(f"[KILL_SWITCH] engaged ({reason}) — refusing to start.")
+            audit("kill_switch_triggered", phase="startup", reason=reason)
+            sys.exit(4)
+
+        audit("startup", compliance=compliance)
 
         # ── Check if market is open today ──
         if not settings.is_market_day():
@@ -101,13 +124,29 @@ class TradingBot:
                 self.kite = None
 
         # ── Order & Position Management ──
-        self.order_manager = OrderManager(self.kite)
+        self.order_manager = OrderManager(self.kite, market_data=self.market_data)
         self.order_manager.is_paper = self.mode == "paper"
         self.position_manager = PositionManager(self.order_manager, db=self.db)
         self.risk_manager = RiskManager(self.order_manager, db=self.db)
+        # Let RiskManager query circuit limits / prev-close from MarketData.
+        self.risk_manager.market_data = self.market_data
 
         # ── Crash Recovery ──
         self._recover_orphaned_positions()
+
+        # ── Post-recovery broker reconciliation (live only) ──
+        if self.mode == "live" and self.kite:
+            report = self.order_manager.reconcile_with_broker()
+            if not report.get("clean", True):
+                logger.error(
+                    "Broker reconciliation FAILED at startup. "
+                    f"Details: {report}. Refusing to start trading until "
+                    "positions are reconciled manually."
+                )
+                self.notifier.send(
+                    f"🚨 Broker drift at startup — bot halting.\n{report}"
+                )
+                sys.exit(2)
 
         # ── Strategy Selection ──
         strategy_name = settings.STRATEGY
@@ -210,6 +249,8 @@ class TradingBot:
             tokens = list(self.instrument_tokens.values())
             self.ticker.subscribe(tokens, mode="quote")
             self.ticker.on_tick(self._on_tick)
+            # Broker-side order state changes (SLM triggers, fills, rejects).
+            self.ticker.on_order_update(self.order_manager.handle_order_update)
             self.ticker.start(threaded=True)
             logger.info(f"WebSocket started — monitoring {len(tokens)} instruments")
         except Exception as e:
@@ -302,9 +343,20 @@ class TradingBot:
         logger.info("=" * 40)
 
         interval_seconds = self._get_interval_seconds()
+        reconcile_every = getattr(settings, "BROKER_RECONCILE_CYCLES", 0)
+        cycle_count = 0
 
         while self.running:
             now = settings.now_ist()
+
+            # ── Kill-switch: halt new entries and flatten positions ──
+            if kill_switch.is_engaged():
+                reason = kill_switch.reason() or "engaged"
+                logger.error(f"[KILL_SWITCH] Halting trading loop ({reason}).")
+                audit("kill_switch_triggered", phase="loop", reason=reason)
+                self.notifier.send(f"🛑 Kill-switch engaged: {reason}. Flattening.")
+                self.running = False
+                break
 
             # Check if we should stop trading
             stop_time = self._parse_time(settings.STOP_NEW_TRADES)
@@ -318,6 +370,26 @@ class TradingBot:
                 self._run_single_cycle()
             except Exception as e:
                 logger.error(f"Error in trading cycle: {e}")
+
+            # Periodic broker reconciliation (live only). If drift is
+            # detected, halt new entries but let existing positions run.
+            cycle_count += 1
+            if (
+                self.mode == "live"
+                and reconcile_every > 0
+                and cycle_count % reconcile_every == 0
+                and self.kite
+            ):
+                try:
+                    report = self.order_manager.reconcile_with_broker()
+                    if not report.get("clean", True):
+                        logger.warning(
+                            "[RECONCILE] Drift mid-session — pausing new trades."
+                        )
+                        self.notifier.send(f"⚠️ Broker drift: {report}")
+                        self.running = False  # Stop opening new positions
+                except Exception as e:
+                    logger.error(f"Periodic reconcile failed: {e}")
 
             # Wait for next candle
             elapsed = time.time() - loop_start
@@ -345,6 +417,12 @@ class TradingBot:
                 self.db.log_trade(order)
                 self.risk_manager.record_trade_result(order.pnl)
                 self.risk_manager.update_capital(self.risk_manager.capital + order.pnl)
+                # Phase 3C: feed regime-perf tracker
+                tracker = getattr(self.strategy, "tracker", None)
+                if tracker is not None:
+                    dir_key = self._last_dir_regime.get(order.symbol, "UNKNOWN")
+                    vol_key = self._last_vol_regime.get(order.symbol, "NORMAL")
+                    tracker.record(order.strategy, dir_key, vol_key, order.pnl)
                 self._logged_order_ids.add(order.order_id)
 
         # ── Update unrealized P&L and intraday drawdown tracking ──
@@ -372,22 +450,51 @@ class TradingBot:
                 if df.empty or len(df) < 5:
                     continue
 
+                # Drop partial trailing bar so indicators only see closed
+                # candles — matches backtest (`next()` fires on bar close).
+                df = drop_incomplete_last_bar(df, self._get_interval_seconds())
+                if df.empty or len(df) < 5:
+                    continue
+
                 # Calculate indicators on primary timeframe
                 df = add_all_indicators(df)
 
                 # ── Multi-timeframe analysis ──
                 df_htf = None
                 regime = None
+                vol_regime = None
 
                 if getattr(settings, 'ENABLE_REGIME_DETECTION', False):
-                    # Resample to 15-min for higher-timeframe analysis
-                    df_htf = resample_to_htf(df, interval="15min")
+                    # Fetch multi-day 15-min history (not just today's
+                    # resampled candles) so EMA/Supertrend warm-up matches
+                    # backtest. Cached once per day inside MarketData.
+                    df_htf = self.market_data.get_htf_data(
+                        symbol, interval="15minute", days=5
+                    )
+                    df_htf = drop_incomplete_last_bar(df_htf, 15 * 60)
                     if not df_htf.empty and len(df_htf) >= 5:
                         df_htf = add_all_indicators(df_htf)
                         regime = detect_regime(df_htf)
 
-                # Get strategy signal with multi-TF context
-                signal = self.strategy.analyze(df, symbol, df_htf=df_htf, regime=regime)
+                # Phase 3C: volatility regime from intraday df
+                if getattr(settings, "ENABLE_VOLATILITY_REGIME", False):
+                    try:
+                        from src.indicators.market_regime import detect_volatility_regime
+                        vol_regime = detect_volatility_regime(df)
+                    except Exception:
+                        vol_regime = None
+
+                # Attribution cache for regime-perf tracker
+                self._last_dir_regime[symbol] = regime.value if regime is not None else "UNKNOWN"
+                self._last_vol_regime[symbol] = vol_regime.value if vol_regime is not None else "NORMAL"
+
+                # Get strategy signal with multi-TF context (orchestrator accepts vol_regime)
+                try:
+                    signal = self.strategy.analyze(
+                        df, symbol, df_htf=df_htf, regime=regime, vol_regime=vol_regime
+                    )
+                except TypeError:
+                    signal = self.strategy.analyze(df, symbol, df_htf=df_htf, regime=regime)
                 if signal.signal == Signal.HOLD:
                     continue
 
@@ -557,26 +664,35 @@ class TradingBot:
         return intervals.get(settings.TIMEFRAME, 300)
 
     def _recover_orphaned_positions(self):
-        """Recover open positions from a previous crashed session."""
+        """Recover open positions from a previous crashed session.
+
+        LIVE: reconcile with kite.positions() — if there are actual live
+        broker positions we didn't know about, halt immediately rather
+        than blindly clearing the DB (which would leave the bot blind to
+        real exposure). Let the reconciliation path in setup() handle it.
+
+        PAPER: no broker to check; just clear the stale DB rows.
+        """
         try:
             orphaned = self.db.get_open_positions()
-            if not orphaned:
+            if orphaned:
+                logger.warning(
+                    f"Found {len(orphaned)} orphaned positions from previous session"
+                )
+                for row in orphaned:
+                    logger.warning(
+                        f"  Orphaned: {row['signal']} {row['symbol']} "
+                        f"qty={row['quantity']} entry={row['entry_price']:.2f}"
+                    )
+
+            if self.mode == "paper" or not self.kite:
+                # No broker to reconcile with — safe to drop stale rows.
+                self.db.clear_open_positions()
                 return
 
-            logger.warning(f"Found {len(orphaned)} orphaned positions from previous session")
-            self.notifier.send(f"⚠️ Found {len(orphaned)} orphaned positions — attempting recovery")
-
-            for row in orphaned:
-                symbol = row["symbol"]
-                logger.warning(
-                    f"  Orphaned: {row['signal']} {symbol} qty={row['quantity']} "
-                    f"entry={row['entry_price']:.2f}"
-                )
-
-            # Clear from DB — positions are either already closed by broker (intraday MIS)
-            # or need manual intervention
-            self.db.clear_open_positions()
-            logger.info("Orphaned positions cleared from recovery table")
+            # Live mode: do NOT clear until we've confirmed broker state.
+            # The reconcile step in setup() will raise if there's drift.
+            logger.info("Live mode: broker reconciliation will verify state next.")
         except Exception as e:
             logger.error(f"Crash recovery failed: {e}")
 
@@ -596,6 +712,7 @@ class TradingBot:
         """Clean up resources."""
         if self.ticker:
             self.ticker.stop()
+        audit("shutdown", mode=self.mode)
         logger.info("Bot shutdown complete")
 
 

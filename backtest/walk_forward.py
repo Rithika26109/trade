@@ -23,6 +23,7 @@ from backtesting import Backtest
 from backtest.run_backtest import (
     ORBBacktest,
     RSIEMABacktest,
+    VWAPSupertrendBacktest,
     load_sample_data,
     zerodha_commission,
 )
@@ -32,6 +33,7 @@ from backtest.run_backtest import (
 STRATEGY_MAP = {
     "ORB": ORBBacktest,
     "RSI_EMA": RSIEMABacktest,
+    "VWAP_SUPERTREND": VWAPSupertrendBacktest,
 }
 
 # ── Window Configuration ──
@@ -231,10 +233,12 @@ def main():
                         help="Days of historical data to load (default: 120)")
     parser.add_argument("--capital", type=int, default=100_000,
                         help="Starting capital in Rs (default: 100000)")
+    parser.add_argument("--allow-synthetic", action="store_true",
+                        help="Permit synthetic fallback if real data unavailable.")
     args = parser.parse_args()
 
     print(f"Loading {args.days} days of data for {args.symbol}...")
-    df = load_sample_data(args.symbol, args.days)
+    df = load_sample_data(args.symbol, args.days, allow_synthetic=args.allow_synthetic)
     if df.empty:
         print("No data available.")
         return

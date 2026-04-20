@@ -47,13 +47,27 @@ class PositionManager:
 
         closed = []
         for pos in self.open_positions:
+            # Position may have been closed externally (e.g., broker SLM
+            # fired, surfaced via WebSocket on_order_update). Reap it.
+            if not pos.is_open:
+                closed.append(pos)
+                continue
+
             price = current_prices.get(pos.symbol)
             if price is None:
                 continue
 
             # Update trailing stop if enabled
             if settings.STOP_LOSS_TYPE == "TRAILING":
+                prev_sl = pos.stop_loss
                 self._update_trailing_stop(pos, price)
+                # If broker SLM is active and trailing tightened, modify it.
+                if (
+                    not getattr(pos, "is_paper", True)
+                    and getattr(pos, "sl_order_id", None)
+                    and pos.stop_loss != prev_sl
+                ):
+                    self._modify_broker_slm_trigger(pos)
 
             # Check partial exits first (if enabled)
             if getattr(settings, 'ENABLE_PARTIAL_EXITS', False) and pos.original_quantity > 0:
@@ -103,8 +117,22 @@ class PositionManager:
         """
         Check if position should be partially closed at profit-taking levels.
         Returns (reason, quantity_to_close) or None.
+
+        Uses the *original* risk (entry - initial stop) as the R-unit so that
+        moving the stop to breakeven after 1R does not re-compute R and
+        falsely re-fire the 2R/3R triggers.
         """
-        risk = abs(pos.executed_price - pos.stop_loss)
+        # Use the ORIGINAL risk captured at entry, not the (possibly trailed)
+        # current stop. We infer original risk from the first partial_exits
+        # if available; otherwise from the current stop.
+        original_sl = getattr(pos, "_original_stop_loss", None)
+        if original_sl is None:
+            original_sl = pos.stop_loss
+            try:
+                pos._original_stop_loss = original_sl
+            except Exception:
+                pass
+        risk = abs(pos.executed_price - original_sl)
         if risk <= 0:
             return None
 
@@ -141,6 +169,23 @@ class PositionManager:
 
         return None
 
+    def _modify_broker_slm_trigger(self, pos: Order):
+        """Modify the broker-side SLM trigger to match the trailed stop."""
+        om = self.order_manager
+        if not om.kite or om.is_paper or not pos.sl_order_id:
+            return
+        try:
+            om._broker_call(
+                f"modify_SLM_trigger({pos.symbol} -> {pos.stop_loss:.2f})",
+                lambda: om.kite.modify_order(
+                    variety=om.kite.VARIETY_REGULAR,
+                    order_id=pos.sl_order_id,
+                    trigger_price=pos.stop_loss,
+                ),
+            )
+        except Exception as e:
+            logger.error(f"modify_SLM_trigger failed for {pos.symbol}: {e}")
+
     def _update_trailing_stop(self, pos: Order, current_price: float):
         """Update trailing stop-loss as price moves favorably."""
         hwm = self._high_water_marks.get(pos.order_id, pos.executed_price)
@@ -163,16 +208,24 @@ class PositionManager:
         """
         Determine if a position should be exited.
         Returns exit reason string or None.
+
+        When a broker-side SLM is active (pos.sl_order_id set) AND the bot
+        is in live mode, the stop-loss leg is delegated entirely to the
+        exchange to prevent double-exit (software close + SLM trigger →
+        reverse position). Only target and other non-SL exits run here.
         """
+        broker_stop_active = (
+            not getattr(pos, "is_paper", True) and getattr(pos, "sl_order_id", None)
+        )
         if pos.signal == Signal.BUY:
             # Long position
-            if current_price <= pos.stop_loss:
+            if not broker_stop_active and current_price <= pos.stop_loss:
                 return f"Stop-loss hit at {current_price:.2f}"
             if current_price >= pos.target:
                 return f"Target hit at {current_price:.2f}"
         else:
             # Short position
-            if current_price >= pos.stop_loss:
+            if not broker_stop_active and current_price >= pos.stop_loss:
                 return f"Stop-loss hit at {current_price:.2f}"
             if current_price <= pos.target:
                 return f"Target hit at {current_price:.2f}"

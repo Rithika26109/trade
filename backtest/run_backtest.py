@@ -11,7 +11,7 @@ Usage:
 
 import argparse
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dtime
 from pathlib import Path
 
 # Add project root to path
@@ -43,6 +43,18 @@ def zerodha_commission(size, price):
     return brokerage + stt + txn + gst + sebi + stamp
 
 
+# ── Intraday square-off helper ──
+SQUARE_OFF_TIME = dtime(15, 15)  # Match live STOP_NEW_TRADES / EOD flattening
+
+
+def _past_square_off(ts) -> bool:
+    """True if a timestamp is at/after the intraday square-off clock."""
+    try:
+        return ts.time() >= SQUARE_OFF_TIME
+    except Exception:
+        return False
+
+
 class ORBBacktest(Strategy):
     """Opening Range Breakout backtest — matches live logic (fixed range per day)."""
     orb_period = 3  # Number of candles for opening range (3 × 5min = 15min)
@@ -62,6 +74,12 @@ class ORBBacktest(Strategy):
 
     def next(self):
         if len(self.data) < self.orb_period + 5:
+            return
+
+        # Intraday square-off: flatten at/after 15:15 and do not re-enter.
+        if _past_square_off(self.data.index[-1]):
+            if self.position:
+                self.position.close()
             return
 
         # Detect new day — compute opening range once per day
@@ -130,6 +148,10 @@ class RSIEMABacktest(Strategy):
         )
 
     def next(self):
+        if _past_square_off(self.data.index[-1]):
+            if self.position:
+                self.position.close()
+            return
         if self.position:
             return
 
@@ -221,6 +243,10 @@ class VWAPSupertrendBacktest(Strategy):
         )
 
     def next(self):
+        if _past_square_off(self.data.index[-1]):
+            if self.position:
+                self.position.close()
+            return
         if self.position:
             return
 
@@ -269,9 +295,11 @@ class VWAPSupertrendBacktest(Strategy):
             self.sell(sl=stop, tp=target)
 
 
-def load_sample_data(symbol: str = "INFY", days: int = 60) -> pd.DataFrame:
+def load_sample_data(symbol: str = "INFY", days: int = 60, allow_synthetic: bool = False) -> pd.DataFrame:
     """
-    Load historical data. Tries Zerodha first, falls back to generated sample.
+    Load historical data. Tries Zerodha first; synthetic fallback is
+    opt-in via `allow_synthetic` to prevent silently tuning strategies
+    against random walks (which produce meaningless P&L).
     """
     try:
         from src.auth.login import ZerodhaAuth
@@ -294,8 +322,17 @@ def load_sample_data(symbol: str = "INFY", days: int = 60) -> pd.DataFrame:
     except Exception as e:
         print(f"Could not load from Zerodha: {e}")
 
+    if not allow_synthetic:
+        print(
+            "ERROR: Real data unavailable and --allow-synthetic was NOT set. "
+            "Synthetic random-walk data is NOT representative of the market; "
+            "tuning strategies against it will produce false confidence. "
+            "Run with --allow-synthetic to explicitly accept this risk."
+        )
+        return pd.DataFrame()
+
     # Generate realistic sample data with momentum and intraday patterns
-    print("Generating sample data for backtest demo...")
+    print("Generating sample data for backtest demo (SYNTHETIC \u2014 use only for smoke-testing)...")
     import numpy as np
     np.random.seed(42)
 
@@ -339,10 +376,16 @@ def main():
     parser.add_argument("--symbol", default="INFY", help="Stock symbol")
     parser.add_argument("--days", type=int, default=60, help="Days of historical data")
     parser.add_argument("--capital", type=int, default=100000, help="Starting capital")
+    parser.add_argument(
+        "--allow-synthetic",
+        action="store_true",
+        help="Permit synthetic random-walk fallback when real data is unavailable. "
+             "Off by default because synthetic data will mislead strategy tuning.",
+    )
     args = parser.parse_args()
 
     # Load data
-    df = load_sample_data(args.symbol, args.days)
+    df = load_sample_data(args.symbol, args.days, allow_synthetic=args.allow_synthetic)
     if df.empty:
         print("No data available for backtesting")
         return

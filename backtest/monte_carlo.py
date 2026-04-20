@@ -207,11 +207,13 @@ def main():
                         help="Starting capital in Rs (default: 100000)")
     parser.add_argument("--simulations", type=int, default=10_000,
                         help="Number of Monte Carlo shuffles (default: 10000)")
+    parser.add_argument("--allow-synthetic", action="store_true",
+                        help="Permit synthetic fallback if real data unavailable.")
     args = parser.parse_args()
 
     # Step 1: Load data and run the base backtest
     print(f"Loading {args.days} days of data for {args.symbol}...")
-    df = load_sample_data(args.symbol, args.days)
+    df = load_sample_data(args.symbol, args.days, allow_synthetic=args.allow_synthetic)
     if df.empty:
         print("No data available.")
         return

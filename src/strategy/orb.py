@@ -24,6 +24,11 @@ class ORBStrategy(BaseStrategy):
 
     def __init__(self):
         self._opening_range: dict[str, dict] = {}  # symbol → {high, low, open}
+        # One-shot guard: ORB is a single-entry-per-day strategy. Once a
+        # breakout has fired for a symbol on a given session, refuse further
+        # entries until the next day. Matches `_traded_today` in backtest.
+        self._traded_today: set[str] = set()
+        self._traded_date = None
 
     @property
     def name(self) -> str:
@@ -31,6 +36,11 @@ class ORBStrategy(BaseStrategy):
 
     def set_opening_range(self, symbol: str, high: float, low: float, open_price: float):
         """Set the opening range for a symbol (called after first 15 min)."""
+        # Reset one-shot trade guard on a new session.
+        today = settings.now_ist().date()
+        if self._traded_date != today:
+            self._traded_today.clear()
+            self._traded_date = today
         self._opening_range[symbol] = {
             "high": high,
             "low": low,
@@ -55,6 +65,11 @@ class ORBStrategy(BaseStrategy):
         """
         if symbol not in self._opening_range:
             return self._hold(symbol, "Opening range not set yet")
+
+        # One-trade-per-day guard. The live loop can re-enter this method on
+        # every cycle after a fill; prevent re-arming breakouts intraday.
+        if symbol in self._traded_today:
+            return self._hold(symbol, "ORB already traded today")
 
         if len(df) < 2:
             return self._hold(symbol, "Not enough data")
@@ -153,6 +168,7 @@ class ORBStrategy(BaseStrategy):
                 signal.confluence_score = conf.total
                 signal.confluence_details = conf.components
 
+            self._traded_today.add(symbol)
             return signal
 
         # ── BREAKDOWN BELOW (SELL) ──
@@ -195,6 +211,7 @@ class ORBStrategy(BaseStrategy):
                 signal.confluence_score = conf.total
                 signal.confluence_details = conf.components
 
+            self._traded_today.add(symbol)
             return signal
 
         return self._hold(symbol, f"Price within range [{orb_low:.2f} - {orb_high:.2f}]")

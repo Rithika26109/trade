@@ -67,10 +67,57 @@ def add_atr(df: pd.DataFrame, period: int = None) -> pd.DataFrame:
 
 def add_vwap(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Add VWAP (Volume Weighted Average Price).
-    VWAP resets daily — only meaningful for intraday data.
+    Add VWAP (Volume Weighted Average Price), anchored daily.
+
+    Resets at the start of every trading day so the live session uses the
+    same definition as the backtest (`_daily_vwap` in backtest/run_backtest.py).
+    Using pandas_ta's `ta.vwap` directly anchors off-index when the frame
+    contains multiple sessions, which silently drifts from the backtest.
     """
-    df["vwap"] = ta.vwap(df["high"], df["low"], df["close"], df["volume"])
+    if df.empty or "volume" not in df.columns or "date" not in df.columns:
+        return df
+
+    typical_price = (df["high"] + df["low"] + df["close"]) / 3.0
+    tp_vol = typical_price * df["volume"]
+
+    # Group by calendar date so VWAP resets at the daily boundary.
+    dates = df["date"].dt.date
+    cum_tp_vol = tp_vol.groupby(dates).cumsum()
+    cum_vol = df["volume"].groupby(dates).cumsum().replace(0, float("nan"))
+    df["vwap"] = cum_tp_vol / cum_vol
+    return df
+
+
+def drop_incomplete_last_bar(
+    df: pd.DataFrame, interval_seconds: int, now_ts=None
+) -> pd.DataFrame:
+    """
+    Drop a trailing partial candle so indicators compute on closed bars only.
+    Mirrors backtest behaviour where every bar is fully formed before decisions.
+
+    Args:
+        df: OHLCV frame with a `date` column (tz-aware IST recommended).
+        interval_seconds: duration of one candle (e.g. 300 for 5min).
+        now_ts: optional override of current time (mostly for tests).
+    """
+    if df.empty or "date" not in df.columns or interval_seconds <= 0:
+        return df
+    if now_ts is None:
+        now_ts = settings.now_ist()
+
+    last_bar_open = df["date"].iloc[-1]
+    # If `last_bar_open` isn't tz-aware but now_ts is, normalise for compare.
+    try:
+        if last_bar_open.tzinfo is None and now_ts.tzinfo is not None:
+            last_bar_open = last_bar_open.tz_localize(now_ts.tzinfo)
+        elif last_bar_open.tzinfo is not None and now_ts.tzinfo is None:
+            now_ts = now_ts.replace(tzinfo=last_bar_open.tzinfo)
+    except Exception:
+        return df
+
+    bar_close = last_bar_open + pd.Timedelta(seconds=interval_seconds)
+    if now_ts < bar_close:
+        return df.iloc[:-1].copy()
     return df
 
 

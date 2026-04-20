@@ -43,6 +43,50 @@ class MarketRegime(Enum):
         return self in (MarketRegime.STRONG_TREND_DOWN, MarketRegime.TREND_DOWN)
 
 
+class VolatilityRegime(Enum):
+    LOW = "LOW"
+    NORMAL = "NORMAL"
+    HIGH = "HIGH"
+
+
+def detect_volatility_regime(df: pd.DataFrame) -> VolatilityRegime:
+    """
+    Detect volatility regime via ATR% percentile over lookback window.
+    df must contain 'atr' column (or 'high','low','close' to compute).
+    """
+    if df.empty or len(df) < 5:
+        return VolatilityRegime.NORMAL
+
+    lookback = getattr(settings, "VOL_REGIME_LOOKBACK_DAYS", 20)
+    low_pct = getattr(settings, "VOL_REGIME_LOW_PCT", 33)
+    high_pct = getattr(settings, "VOL_REGIME_HIGH_PCT", 67)
+
+    if "atr" in df.columns:
+        atr = df["atr"]
+    else:
+        tr = pd.concat([
+            df["high"] - df["low"],
+            (df["high"] - df["close"].shift(1)).abs(),
+            (df["low"] - df["close"].shift(1)).abs(),
+        ], axis=1).max(axis=1)
+        atr = tr.rolling(14, min_periods=1).mean()
+
+    close = df["close"]
+    atr_pct = (atr / close * 100).tail(lookback).dropna()
+    if len(atr_pct) < 5:
+        return VolatilityRegime.NORMAL
+
+    cur = atr_pct.iloc[-1]
+    lo_thr = atr_pct.quantile(low_pct / 100.0)
+    hi_thr = atr_pct.quantile(high_pct / 100.0)
+
+    if cur <= lo_thr:
+        return VolatilityRegime.LOW
+    if cur >= hi_thr:
+        return VolatilityRegime.HIGH
+    return VolatilityRegime.NORMAL
+
+
 def detect_regime(df: pd.DataFrame) -> MarketRegime:
     """
     Detect market regime from a DataFrame with ADX, +DI, -DI, and BB columns.

@@ -74,7 +74,7 @@ SECTOR_MAP = {
     # Others
     "TITAN": "Consumer Discretionary",
     "ASIANPAINT": "Consumer Discretionary",
-    "WIPRO": "IT",
+    # (WIPRO already declared above under IT — duplicate removed)
 }
 
 

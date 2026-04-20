@@ -76,6 +76,16 @@ class TradeDB:
                     is_paper INTEGER DEFAULT 1
                 )
             """)
+            # Phase 3E: persisted intraday risk state (HWM / daily-loss)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS risk_state (
+                    date TEXT PRIMARY KEY,
+                    hwm REAL DEFAULT 0,
+                    drawdown REAL DEFAULT 0,
+                    daily_loss REAL DEFAULT 0,
+                    updated_at TEXT NOT NULL
+                )
+            """)
 
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(str(self.db_path))
@@ -226,3 +236,46 @@ class TradeDB:
                 "best_trade": row[6] or 0,
                 "worst_trade": row[7] or 0,
             }
+
+    # ── Phase 3E helpers ──
+    def get_closed_trades(self, limit: int = 200) -> list[dict]:
+        """Return most-recent closed trades (pnl != 0) for Kelly/correlation."""
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT symbol, quantity, entry_price, exit_price, pnl, created_at "
+                "FROM trades WHERE pnl != 0 ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def save_risk_state(self, hwm: float, drawdown: float, daily_loss: float) -> None:
+        """Persist today's intraday risk state so circuit breakers survive a restart."""
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO risk_state (date, hwm, drawdown, daily_loss, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (
+                        str(settings.now_ist().date()),
+                        float(hwm),
+                        float(drawdown),
+                        float(daily_loss),
+                        settings.now_ist().isoformat(),
+                    ),
+                )
+        except Exception as e:
+            logger.debug(f"save_risk_state failed: {e}")
+
+    def load_risk_state(self) -> dict | None:
+        """Load today's risk state if present, else None."""
+        try:
+            with self._connect() as conn:
+                conn.row_factory = sqlite3.Row
+                row = conn.execute(
+                    "SELECT hwm, drawdown, daily_loss FROM risk_state WHERE date = ?",
+                    (str(settings.now_ist().date()),),
+                ).fetchone()
+                return dict(row) if row else None
+        except Exception:
+            return None
