@@ -69,3 +69,43 @@ TRADING_MODE=paper python main.py
 # Run bot (live mode) — only after thorough paper testing
 TRADING_MODE=live python main.py
 ```
+
+## Interactive Slash Commands
+
+Invoke these during the trading day for guided analysis (`.claude/commands/`):
+
+| Command | When | Purpose |
+|---------|------|---------|
+| `/pre-market` | 8:30 AM IST | Morning research, news, watchlist review |
+| `/market-open` | 9:15 AM IST | Review opening auction, verify bot running |
+| `/midday` | 12:00 PM IST | Check positions, adjust stops, scan new setups |
+| `/daily-summary` | 3:30 PM IST | End-of-day P&L, plan grading, Telegram report |
+| `/weekly-review` | Friday PM / Saturday | Weekly performance recap and lessons |
+| `/portfolio` | Any time | Quick portfolio snapshot |
+| `/trade <sym> <qty> <buy\|sell>` | Any time | Manual trade with full risk validation |
+
+These are **separate from** the cloud-scheduled routines in `.claude/routines/`.
+Commands are interactive (you invoke them); routines run automatically.
+
+## Memory Files
+
+Persistent knowledge in `memory/` (read by all commands and routines):
+- `TRADING-STRATEGY.md` — Active strategy rules and risk parameters
+- `TRADE-LOG.md` — Running trade log (last 30 days)
+- `RESEARCH-LOG.md` — Daily market research and observations
+- `WEEKLY-REVIEW.md` — Weekly performance summaries
+- `PROJECT-TRADING-CHALLENGE.md` — Overall project journey and milestones
+
+## Shell Wrapper
+
+`scripts/kite.sh` — Quick Kite REST API calls without booting Python.
+```bash
+scripts/kite.sh profile          # Auth test
+scripts/kite.sh account          # Margins and cash
+scripts/kite.sh positions        # Current positions
+scripts/kite.sh quote SYM1,SYM2  # LTP + OHLC
+scripts/kite.sh orders           # Today's orders
+scripts/kite.sh order BUY SYM QTY [PRICE]  # Place MIS order
+scripts/kite.sh cancel ORDER_ID  # Cancel order
+scripts/kite.sh telegram "MSG"   # Send Telegram message
+```
