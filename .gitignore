@@ -21,6 +21,9 @@ data/historical/*.json
 logs/
 *.log
 
+# …but keep the bot heartbeat (read by the cloud healthcheck routine)
+!logs/bot_heartbeat.json
+
 # IDE
 .vscode/
 .idea/

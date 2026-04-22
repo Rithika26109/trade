@@ -9,6 +9,7 @@ morning plan approves.
 │                    Claude Routines (cloud)                          │
 │                                                                     │
 │  07:30 IST  premarket-plan  →  config/daily_plan.json  →  git push  │
+│  09:20 IST  bot-healthcheck →  logs/journal/…md        →  Telegram? │
 │  16:30 IST  eod-review      →  logs/journal/…md        →  git push  │
 │  Sat 10:00  weekly-meta     →  .claude/routines/*      →  git push  │
 └─────────────────────────────┬───────────────────────────────────────┘
@@ -16,7 +17,12 @@ morning plan approves.
 ┌─────────────────────────────┴───────────────────────────────────────┐
 │                      Local bot (your machine)                       │
 │                                                                     │
-│  09:10 IST  `git pull` → load_daily_plan() → apply risk overrides   │
+│  06:30 IST  cron → refresh_kite_token.py (access token rotation)    │
+│  09:05 IST  cron → scripts/run_bot.sh                               │
+│             ├── writes logs/bot_heartbeat.json → git push           │
+│             ├── caffeinate -i (keep Mac awake ~6h40m)               │
+│             └── exec main.py --paper                                │
+│  09:10 IST  main.setup() → `git pull` → load_daily_plan()           │
 │  09:15-15:15  trade (respecting bias + overrides)                   │
 │  15:35 IST  scripts/eod_commit.py → git push events + metrics       │
 └─────────────────────────────────────────────────────────────────────┘
@@ -27,10 +33,10 @@ morning plan approves.
 ## Prerequisites
 
 - GitHub repo for this project (push access from your machine + from Claude).
-- **Anthropic Pro plan is sufficient.** This design uses only 2 runs/weekday
-  (premarket + eod-review) and 1 run on Saturday (weekly-meta) — well under
-  Pro's 5 routine runs/day cap. Upgrade to Max only if you later add an
-  intraday mid-session check-in routine.
+- **Anthropic Pro plan is sufficient.** This design uses 3 runs/weekday
+  (premarket + bot-healthcheck + eod-review) and 1 run on Saturday
+  (weekly-meta) — under Pro's 5 routine runs/day cap. Upgrade to Max only
+  if you later add an intraday mid-session check-in routine.
 - Gemini API key (free tier works for v1).
 - `gh` CLI installed & authenticated on your local machine
   (`brew install gh && gh auth login`).
@@ -134,6 +140,13 @@ At https://code.claude.com → **Routines → New**:
 - **Prompt:** paste [`.claude/routines/weekly_meta.md`](../.claude/routines/weekly_meta.md).
 - **Secrets:** none.
 
+### 4. `bot-healthcheck`
+- **Schedule:** weekdays at `03:50 UTC` (= 09:20 IST).
+- **Prompt:** paste [`routines/healthcheck.md`](../routines/healthcheck.md).
+- **Secrets:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+- **Working dir:** repo root.
+- Alerts via Telegram only on failure; silent on PASS.
+
 Each routine gets its own job history; watch the first couple of runs.
 
 ---
@@ -149,7 +162,57 @@ pip install -r requirements.txt
 
 ---
 
-## How to run the bot (unchanged)
+## Auto-running the bot (local cron)
+
+Claude routines live in the cloud and cannot host a 6-hour live trading
+process (short job runtimes, no Kite WebSocket, no static-IP whitelisting
+for SEBI compliance). The bot itself therefore runs **locally on your
+Mac**, launched daily by `cron`.
+
+### One-time: install the launcher cron
+
+[`scripts/run_bot.sh`](../scripts/run_bot.sh) is the launcher. It writes a
+heartbeat file to `logs/bot_heartbeat.json` and pushes it to the repo
+(so the cloud `bot-healthcheck` routine can see it), starts `caffeinate -i`
+to keep the Mac awake through market hours, and then execs `main.py` in
+**paper mode**. Promoting to live mode is an intentional manual edit of
+this script.
+
+Add to `crontab -e` (matches the existing UTC convention used by the
+token-refresh cron):
+```
+# Launch trading bot at 09:05 IST (= 03:35 UTC) on weekdays
+35 3 * * 1-5  cd /Users/rithika-18920/Documents/aiaiai/serious/trade && scripts/run_bot.sh >> logs/cron.log 2>&1
+```
+
+### Sanity test on a weekend
+
+```bash
+bash scripts/run_bot.sh
+```
+Expected: heartbeat file written + committed + pushed, `caffeinate`
+started, `main.py` runs and exits immediately via
+`settings.is_market_day()` since the market is closed. `logs/bot-<date>.log`
+should contain the shutdown line.
+
+### Caveats
+
+- **MacBook lid closed / battery power:** `caffeinate -i` blocks idle
+  sleep but does **not** stop clamshell sleep. If the Mac lives closed,
+  either keep it on AC with an external display, or run on an
+  always-on mini / server.
+- **System timezone:** the cron line above assumes the Mac's system
+  clock is UTC (which is `cron`'s default interpretation). If your
+  system is on IST, rewrite to `5 9 * * 1-5` and also rewrite the
+  token-refresh cron (`0 1` → `30 6`) to match, or you'll end up
+  off by 5h30m.
+- **Mid-day crash:** the 09:20 healthcheck catches startup failures
+  only. For crashes later in the session, `main.py` already sends a
+  `🚨 Bot crashed` Telegram alert from its own error handler.
+- **To disable auto-run:** comment out the cron line. Everything else
+  (manual runs, routines, token refresh) keeps working unchanged.
+
+## How to run the bot manually (unchanged)
 
 ```bash
 TRADING_MODE=paper python main.py
@@ -179,13 +242,20 @@ settings caps — exactly the old behaviour.
 - [ ] Repo pushed to GitHub with `config/.env` gitignored.
 - [ ] Claude Code GitHub App installed on the repo, `main` push allowed.
 - [ ] `GEMINI_API_KEY`, `KITE_API_KEY` stored as repo secrets.
+- [ ] `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` stored as repo secrets
+      (used by `bot-healthcheck`).
 - [ ] `scripts/refresh_kite_token.py --dry-run` succeeded locally.
-- [ ] Local cron installed for 06:30 IST rotation.
-- [ ] All three routines created in code.claude.com and armed.
+- [ ] Local cron installed for 06:30 IST token rotation.
+- [ ] Local cron installed for 09:05 IST bot launch (`scripts/run_bot.sh`).
+- [ ] `bash scripts/run_bot.sh` on a weekend produced a heartbeat commit.
+- [ ] All four routines created in code.claude.com and armed
+      (premarket-plan, bot-healthcheck, eod-review, weekly-meta).
 - [ ] Bot still runs green in paper mode:
       `TRADING_MODE=paper python main.py`.
 - [ ] After first morning run, `config/daily_plan.json` exists and
       `python scripts/validate_plan.py config/daily_plan.json` prints `OK:`.
+- [ ] After first 09:20 healthcheck, `logs/journal/<today>.md` contains a
+      `## Startup — PASS` section.
 
 ---
 

@@ -70,6 +70,17 @@ TRADING_MODE=paper python main.py
 TRADING_MODE=live python main.py
 ```
 
+## Auto-run (local cron + cloud healthcheck)
+
+Day-to-day the bot launches itself:
+- **06:30 IST** — `scripts/refresh_kite_token.py` rotates the Kite access token (cron).
+- **09:05 IST** — `scripts/run_bot.sh` writes a heartbeat, starts `caffeinate`, and execs `main.py --paper` (cron).
+- **09:20 IST** — cloud `bot-healthcheck` routine verifies the heartbeat; alerts via Telegram on failure.
+- **15:35 IST** — `scripts/eod_commit.py` pushes journal + metrics.
+- **16:30 IST** — cloud `eod-review` routine grades the day.
+
+See [docs/09-CLAUDE-ROUTINES-SETUP.md](docs/09-CLAUDE-ROUTINES-SETUP.md) for full setup.
+
 ## Interactive Slash Commands
 
 Invoke these during the trading day for guided analysis (`.claude/commands/`):
