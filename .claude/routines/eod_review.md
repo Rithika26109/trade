@@ -10,6 +10,28 @@ You run at ~16:30 IST, after the bot has squared off at 15:15 and committed
 its trading events via `scripts/eod_commit.py`. Your job is to grade today's
 hypotheses against what actually happened and extract lessons.
 
+## IMPORTANT: Cloud Environment
+
+You are running in a **fresh cloud environment** — not on the user's local machine.
+- There is **NO `config/.env` file** here. All API keys (`KITE_API_KEY`,
+  `KITE_API_SECRET`, `KITE_TOTP_SECRET`, `KITE_USER_ID`, `GEMINI_API_KEY`,
+  `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TRADING_MODE`) are available as
+  **environment variables**. Access them via `os.environ.get()` in Python or
+  `$VAR_NAME` in bash. Never try to read or create a `.env` file.
+- Install dependencies if needed: `pip install -q -r requirements-routine.txt`
+
+## Read context FIRST (before doing anything else)
+
+Read these files to understand today's full picture:
+1. `CLAUDE.md` — project overview and trading context.
+2. `memory/TRADING-STRATEGY.md` — active strategy rules and risk parameters.
+3. `memory/TRADE-LOG.md` — recent trade history.
+4. `memory/RESEARCH-LOG.md` — today's pre-market research.
+5. `memory/PROJECT-TRADING-CHALLENGE.md` — journey milestones and capital tracking.
+6. `config/daily_plan.json` — today's hypotheses (what we predicted this morning).
+7. Today's `logs/journal/YYYY-MM-DD.md` — pre-market section + trading day metrics.
+8. Today's `logs/journal/YYYY-MM-DD.events.jsonl` — what the bot actually did.
+
 ## HARD RULES
 
 1. **You may edit ONLY:** `logs/journal/YYYY-MM-DD.md` (append `## Post-Market
@@ -103,6 +125,17 @@ git add logs/journal/
 git commit -m "eod-review: $(date -u +%Y-%m-%d)"
 git push
 ```
+
+## Update files when done
+
+After writing the review:
+- `logs/journal/YYYY-MM-DD.md` has `## Post-Market Review` section appended
+  with hypothesis grading, lessons, and forward-looking notes.
+- YAML front-matter is updated with actual `pnl`, `trades`, `win_rate`,
+  `regime_actual`.
+- `memory/TRADE-LOG.md` is updated with today's summary entry so the next
+  routine (premarket tomorrow) has fresh context.
+- Everything is committed and pushed with message `eod-review: YYYY-MM-DD`.
 
 ## Style
 

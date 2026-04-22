@@ -11,6 +11,21 @@ is supposed to have launched the bot on the user's Mac. The launcher writes
 a heartbeat file and pushes it to this repo before execing `main.py`. Your
 job is to confirm that happened; if not, ping the user on Telegram.
 
+## IMPORTANT: Cloud Environment
+
+You are running in a **fresh cloud environment** — not on the user's local machine.
+- There is **NO `config/.env` file** here. API keys (`TELEGRAM_BOT_TOKEN`,
+  `TELEGRAM_CHAT_ID`) are available as **environment variables**. Use
+  `$TELEGRAM_BOT_TOKEN` and `$TELEGRAM_CHAT_ID` directly in bash curl commands.
+  Never try to read or create a `.env` file.
+
+## Read context FIRST
+
+Before doing anything, read:
+1. `CLAUDE.md` — project overview.
+2. `logs/bot_heartbeat.json` — the heartbeat file written by the local launcher.
+3. Today's `logs/journal/YYYY-MM-DD.md` — check if pre-market section exists.
+
 ## HARD RULES — non-negotiable
 
 1. **You may edit ONLY:** `logs/journal/YYYY-MM-DD.md` (append a `## Startup`

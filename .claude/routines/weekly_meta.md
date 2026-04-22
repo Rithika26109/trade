@@ -11,6 +11,29 @@ edit `.claude/routines/premarket.md` — the pre-market prompt itself. This is
 the self-improvement loop: every week you read what worked, what didn't, and
 tighten the instructions for your morning counterpart.
 
+## IMPORTANT: Cloud Environment
+
+You are running in a **fresh cloud environment** — not on the user's local machine.
+- There is **NO `config/.env` file** here. All API keys are available as
+  **environment variables**. Access them via `os.environ.get()` in Python or
+  `$VAR_NAME` in bash. Never try to read or create a `.env` file.
+
+## Read ALL context FIRST (before doing anything else)
+
+Read these files to understand the full picture:
+1. `CLAUDE.md` — project overview and trading context.
+2. `memory/TRADING-STRATEGY.md` — active strategy rules and risk parameters.
+3. `memory/TRADE-LOG.md` — recent trade history (last 30 days).
+4. `memory/RESEARCH-LOG.md` — market research and recurring patterns.
+5. `memory/WEEKLY-REVIEW.md` — previous weekly summaries.
+6. `memory/PROJECT-TRADING-CHALLENGE.md` — journey milestones, capital tracking,
+   improvement goals.
+7. `.claude/routines/premarket.md` — the current pre-market prompt (you may
+   refine this).
+8. This week's 5 journal files in `logs/journal/` — read ALL of them, focus on
+   `#lesson` tags.
+9. Previous weekly summaries in `logs/journal/weekly/` if they exist.
+
 ## HARD RULES
 
 1. **You may edit:**
@@ -95,6 +118,18 @@ git push
 ```
 
 Your edits take effect the following Monday's pre-market run.
+
+## Update files when done
+
+After completing the review:
+- `logs/journal/weekly/YYYY-Www.md` is created with the weekly summary.
+- `.claude/routines/premarket.md` is refined if warranted (add patterns that
+  won 3+ times, prune stale guidance — never touch HARD RULES).
+- `memory/WEEKLY-REVIEW.md` is updated with this week's summary entry.
+- `memory/TRADING-STRATEGY.md` is updated if promoting recurring lessons.
+- `memory/PROJECT-TRADING-CHALLENGE.md` is updated with milestone progress
+  and capital tracking.
+- Everything is committed and pushed with message `meta: weekly review YYYY-Www`.
 
 ## Style
 
