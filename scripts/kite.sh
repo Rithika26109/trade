@@ -32,10 +32,15 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 # Source env vars (handles lines like KEY=value, ignores comments)
+# Note: use temp file instead of <(...) — process substitution is unreliable
+# with `source` on macOS bash when combined with set -a.
+_ENV_TMP=$(mktemp)
+grep -v '^\s*#' "$ENV_FILE" | grep -v '^\s*$' > "$_ENV_TMP"
 set -a
 # shellcheck disable=SC1090
-source <(grep -v '^\s*#' "$ENV_FILE" | grep -v '^\s*$')
+source "$_ENV_TMP"
 set +a
+rm -f "$_ENV_TMP"
 
 API_KEY="${KITE_API_KEY:-}"
 if [[ -z "$API_KEY" ]]; then
@@ -57,8 +62,8 @@ fi
 
 # ── API setup ─────────────────────────────────────────────────────
 
-BASE_URL="https://api.kite.trade"
-AUTH_HEADER="Authorization: token ${API_KEY}:${ACCESS_TOKEN}"
+BASE_URL="https://kite.zerodha.com/oms"
+AUTH_HEADER="Authorization: enctoken ${ACCESS_TOKEN}"
 VERSION_HEADER="X-Kite-Version: 3"
 
 # Trading mode (paper = safe, live = requires --confirm for orders)
@@ -211,8 +216,8 @@ cmd_telegram() {
 
   echo "── Sending Telegram ──"
   curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-    -d "chat_id=${TG_CHAT}" \
-    -d "text=${msg}" \
+    --data-urlencode "chat_id=${TG_CHAT}" \
+    --data-urlencode "text=${msg}" \
     -d "parse_mode=Markdown" | pretty_json
 }
 

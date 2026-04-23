@@ -22,7 +22,7 @@ Learn intraday trading on Indian markets (NSE/BSE) using a systematic, bot-assis
 
 | Phase | Timeline | Goal | Status |
 |-------|----------|------|--------|
-| Setup | Week 1 | Bot running in paper mode, all routines active | In progress |
+| Setup | Week 1 | Bot running in paper mode, all routines active | In progress (API auth blocker) |
 | First trades | Week 2-3 | Complete 10 paper trades, learn the flow | Pending |
 | Baseline | Month 1-2 | 30+ trades, first meaningful win rate data | Pending |
 | Refinement | Month 2-3 | Backtest tuning, strategy adjustments | Pending |
@@ -37,7 +37,7 @@ Learn intraday trading on Indian markets (NSE/BSE) using a systematic, bot-assis
 | Current paper balance | Rs 1,00,000 |
 | High-water mark | Rs 1,00,000 |
 | Max drawdown | Rs 0 |
-| Sessions completed | 0 |
+| Sessions completed | 0 (1 attempted, failed) |
 
 ## Emotional Check-In Prompts
 

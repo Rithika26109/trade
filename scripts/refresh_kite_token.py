@@ -47,6 +47,16 @@ def _set_secret(repo: str, name: str, value: str) -> int:
     return p.returncode
 
 
+def _send_telegram(msg: str):
+    """Send a Telegram message via kite.sh. Best-effort, never raises."""
+    try:
+        script = REPO_ROOT / "scripts" / "kite.sh"
+        subprocess.run([str(script), "telegram", msg],
+                       capture_output=True, text=True, timeout=15)
+    except Exception:
+        pass
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=os.environ.get("GITHUB_REPO", ""),
@@ -64,12 +74,14 @@ def main() -> int:
         kite = auth.login()
     except Exception as e:
         print(f"[refresh_kite_token] login failed: {e}", file=sys.stderr)
+        _send_telegram(f"❌ 06:30 Token refresh FAILED: {e}")
         return 1
 
     token = getattr(auth, "access_token", None) or kite.access_token  # type: ignore[attr-defined]
     if not token:
         print("[refresh_kite_token] login succeeded but no access_token found",
               file=sys.stderr)
+        _send_telegram("❌ 06:30 Token refresh: login OK but no token found")
         return 1
 
     masked = f"{token[:4]}…{token[-4:]}"
@@ -77,6 +89,7 @@ def main() -> int:
 
     if args.dry_run:
         print(f"dry-run: access_token={masked} (length={len(token)})")
+        _send_telegram(f"✅ 06:30 Token refresh OK (dry-run)")
         return 0
 
     if not args.repo:
@@ -90,6 +103,9 @@ def main() -> int:
     rc = _set_secret(args.repo, "KITE_ACCESS_TOKEN", token)
     if rc == 0:
         logger.info(f"[refresh_kite_token] pushed KITE_ACCESS_TOKEN to {args.repo}")
+        _send_telegram(f"✅ 06:30 Token refresh OK, pushed to GitHub")
+    else:
+        _send_telegram(f"⚠️ 06:30 Token refresh: login OK but GitHub push failed")
     return rc
 
 

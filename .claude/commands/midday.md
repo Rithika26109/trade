@@ -5,6 +5,11 @@ Review open positions, assess stop adjustments, and scan for afternoon setups.
 
 **Audience:** Complete beginner. Explain position management and stop-loss trailing.
 
+## Telegram notifications
+
+Send a Telegram message at EVERY major step during this command. This helps the user
+monitor the pipeline remotely and catch failures early. Use: `scripts/kite.sh telegram "MSG"`
+
 ## Context files — read first
 
 1. `memory/TRADING-STRATEGY.md` — stop adjustment rules, risk limits
@@ -82,7 +87,15 @@ If notable midday observations exist, append to `memory/RESEARCH-LOG.md`:
 - Notable: HDFCBANK broke out of morning range on strong volume
 ```
 
-### 8. Summary
+### 8. Send Telegram update (ALWAYS send this)
+
+```bash
+scripts/kite.sh telegram "📊 Midday: Positions: N open | P&L: +/-Rs X | Trades: N/5 | Outlook: bullish/bearish/choppy"
+```
+
+This message is mandatory — always send the midday snapshot.
+
+### 9. Summary
 
 Provide a concise midday scorecard:
 - Positions: N open, P&L +/-Rs X

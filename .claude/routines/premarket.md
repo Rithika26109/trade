@@ -1,3 +1,4 @@
+
 ---
 name: premarket-plan
 description: Daily pre-market research and watchlist selection for the NSE intraday trading bot.
@@ -34,7 +35,7 @@ You are running in a **fresh cloud environment** — not on the user's local mac
 4. **Risk overrides may only TIGHTEN caps**, never loosen them. The validator
    enforces this; don't fight it.
 5. **Watchlist must have 1-10 symbols.** At least one must NOT be `avoid`.
-6. **You must run `python scripts/validate_plan.py config/daily_plan.json` and
+6. **You must run `python3 scripts/validate_plan.py config/daily_plan.json` and
    it must print `OK:` before you commit.**
 7. Keep commits to a single `plan: YYYY-MM-DD` commit. Do not amend history.
 
@@ -58,7 +59,7 @@ Read these in order to get acclimated with the current state:
 ### 1. Data collection
 ```bash
 pip install -q -r requirements-routine.txt
-python scripts/premarket_context.py > /tmp/ctx.json
+python3 scripts/premarket_context.py > /tmp/ctx.json
 ```
 Read `/tmp/ctx.json`. It contains: today's date (IST), NIFTY regime and ATR,
 India VIX level and regime, a ranked scanner list of up to 20 candidates
@@ -67,16 +68,20 @@ overnight position snapshot. If `errors` is non-empty, note it in your journal
 section but proceed.
 
 ### 2. News / macro research (Gemini)
-Use `google-generativeai` with the `GEMINI_API_KEY` env var. Call it for:
-- **Global/macro:** overnight US close (SPX/NDX), Asia open, USD/INR move,
-  Brent, gold, India-specific headlines (RBI, budget, GST, FII flows).
-- **Per-stock:** for the **top 10** by scanner score, search recent news
-  (24-48h) — earnings, management changes, regulatory, sector.
+Use the shared Gemini research script. It handles caching automatically
+to `data/research/YYYY-MM-DD/<key>.json`.
+
+```bash
+# Macro overview (US, Asia, USD/INR, crude, gold, India headlines)
+python3 scripts/gemini_research.py macro
+
+# Per-stock news for the top 10 scanner candidates
+python3 scripts/gemini_research.py stocks SYM1,SYM2,...,SYM10
+```
+
+Read the JSON output from each call. The `content` field has the research text.
 - Flag any stock with binary event risk today (results, court rulings,
   major product launches). Those should usually be `avoid`.
-
-Cache each Gemini response to `data/research/YYYY-MM-DD/<key>.json` so a
-re-run is cheap.
 
 ### 3. Decision
 Pick **5-10 symbols** for today's watchlist. For each, set:
@@ -116,7 +121,7 @@ why these biases, which prior #lesson entries you're acting on. 200-500 words.)
 
 ### 6. Validate
 ```bash
-python scripts/validate_plan.py config/daily_plan.json
+python3 scripts/validate_plan.py config/daily_plan.json
 ```
 If it prints errors, fix the plan and re-validate. Do not commit an
 invalid plan.
