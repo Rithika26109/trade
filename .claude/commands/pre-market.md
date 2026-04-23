@@ -13,13 +13,23 @@ understand the market context before trading begins.
 3. `memory/TRADE-LOG.md` — recent performance
 4. `config/daily_plan.json` — today's plan (if the cloud routine already ran)
 
+## Telegram notifications
+
+Send a Telegram message at EVERY major step during this command. This helps the user
+monitor the pipeline remotely and catch failures early.
+
+```bash
+scripts/kite.sh telegram "MSG"
+```
+
 ## Steps
 
 ### 1. Verify Kite session
 ```bash
 scripts/kite.sh profile
 ```
-If auth fails, tell the user to run `python scripts/refresh_kite_token.py`.
+If auth fails, send Telegram: `"❌ Pre-market: Kite auth failed. Run refresh_kite_token.py"`
+and tell the user to run `python scripts/refresh_kite_token.py`.
 
 ### 2. Check if today's plan exists
 ```bash
@@ -29,25 +39,41 @@ If it exists, great — you'll walk through it. If not, you'll help build a ment
 
 ### 3. Gather market context
 ```bash
-python scripts/premarket_context.py > /tmp/ctx.json 2>&1
+python3 scripts/premarket_context.py > /tmp/ctx.json 2>&1
 cat /tmp/ctx.json
 ```
 This gives you: NIFTY regime, India VIX, scanner candidates, and market status.
 
-### 4. Research global/macro (use WebSearch)
+Send Telegram: `"📊 Pre-market: Context gathered. NIFTY regime: X, VIX: Y"`
 
-Search for these and summarize findings:
-- **US markets overnight:** S&P 500, Nasdaq close — did they rally or sell off?
-- **Asia open:** SGX Nifty, Nikkei, Hang Seng — directional signal for India
-- **USD/INR:** any big move (affects IT exporters like TCS, INFY, WIPRO)
-- **Crude oil (Brent):** affects ONGC, RELIANCE, and general sentiment
-- **India-specific:** RBI announcements, FII/DII flows (yesterday), earnings calendar today
-- **Gold:** affects HDFC, jewelry stocks if big move
+### 4. Research global/macro (Gemini)
 
-For each data point, explain **why it matters** for Indian markets:
+Run Gemini-powered research for macro context:
+```bash
+python3 scripts/gemini_research.py macro
+```
+Read the JSON output. The `content` field has the full macro briefing covering:
+US markets overnight, Asia open, USD/INR, crude oil, gold, India-specific news.
+
+Present the findings to the user, explaining **why each data point matters** for Indian markets:
 > "US Nasdaq closed +1.2% overnight. This is typically bullish for Indian IT stocks (TCS, INFY)
 > because they derive revenue from US clients. However, check if the rally was broad-based or
 > concentrated in a few names."
+
+### 4b. Research watchlist stocks (Gemini)
+
+Get the tradeable symbols from the plan (or default watchlist) and run per-stock research:
+```bash
+python3 scripts/gemini_research.py stocks RELIANCE,TCS,HDFCBANK,INFY,ICICIBANK
+```
+Flag any stock with binary event risk (earnings, court rulings) — those should usually be avoided.
+
+If Gemini research fails (quota error, network), send Telegram:
+`"⚠️ Pre-market: Gemini research failed — proceeding with scanner data only"`
+and continue with the rest of the steps using just the scanner + context data.
+
+After successful research, send Telegram:
+`"🔍 Pre-market: Gemini research complete. Macro + N stocks analyzed."`
 
 ### 5. Walk through the daily plan (if it exists)
 
@@ -83,6 +109,12 @@ Summarize in 3-4 bullets:
 - Any risk factors (high VIX, event risk, macro uncertainty)
 - Reminder: "Market opens at 9:15 AM. The bot builds the ORB range in the first 15 minutes.
   Run /market-open at 9:15 to review the opening."
+
+### 10. Send final Telegram summary (ALWAYS send this)
+
+```bash
+scripts/kite.sh telegram "📋 Pre-market done. Bias: X. Watch: SYM1, SYM2, SYM3. VIX: Y. Next: /market-open at 9:15"
+```
 
 ## Style
 - Educational tone — explain the "why" behind every observation

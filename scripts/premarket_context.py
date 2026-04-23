@@ -103,12 +103,11 @@ def build_context() -> dict:
     kite = None
     try:
         # If the routine set KITE_ACCESS_TOKEN directly, bypass the TOTP flow.
+        # Token is an enctoken (from refresh_kite_token.py), needs /oms endpoints.
         access_token = os.environ.get("KITE_ACCESS_TOKEN")
         if access_token:
-            from kiteconnect import KiteConnect
-            from config import settings
-            kite = KiteConnect(api_key=settings.KITE_API_KEY)
-            kite.set_access_token(access_token)
+            from src.auth.login import _make_enctoken_kite
+            kite = _make_enctoken_kite(access_token)
             kite.profile()  # verify
         else:
             auth = ZerodhaAuth()

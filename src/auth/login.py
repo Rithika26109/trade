@@ -2,13 +2,11 @@
 Zerodha Kite Connect Authentication
 ────────────────────────────────────
 Handles login, TOTP generation, session management.
-Access token is valid for one trading day — re-authenticate every morning.
+Access token (enctoken) is valid for one trading day — re-authenticate every morning.
 """
 
 import json
 import os
-import time
-import urllib.parse
 from pathlib import Path
 
 import pyotp
@@ -21,6 +19,25 @@ from src.utils.logger import logger
 
 # File to cache today's access token (avoid re-login during same day)
 TOKEN_CACHE_FILE = settings.BASE_DIR / "config" / ".access_token"
+
+
+def _make_enctoken_kite(enctoken: str) -> KiteConnect:
+    """Configure a KiteConnect instance to use enctoken auth.
+
+    Zerodha's authorize step can no longer be automated via API, so we use
+    the enctoken cookie obtained after login + TOTP. This works with the
+    /oms endpoints on kite.zerodha.com.
+    """
+    kite = KiteConnect(api_key=settings.KITE_API_KEY)
+    kite.root = "https://kite.zerodha.com"
+    # _routes is a class-level dict — copy to avoid mutating it globally
+    kite._routes = {k: "/oms" + v if not v.startswith("/oms") else v
+                    for k, v in kite._routes.items()}
+    # Prevent kiteconnect from setting its own "token api_key:access_token" header
+    kite.api_key = ""
+    kite.access_token = ""
+    kite.reqsession.headers["Authorization"] = f"enctoken {enctoken}"
+    return kite
 
 
 class ZerodhaAuth:
@@ -44,8 +61,10 @@ class ZerodhaAuth:
 
         # Fresh login needed
         logger.info("Performing fresh login to Zerodha...")
-        request_token = self._get_request_token()
-        self._generate_session(request_token)
+        enctoken = self._login_and_get_enctoken()
+        self.access_token = enctoken
+        self.kite = _make_enctoken_kite(enctoken)
+        self._save_cached_token()
 
         logger.success(f"Logged in as {settings.KITE_USER_ID}")
         return self.kite
@@ -61,8 +80,9 @@ class ZerodhaAuth:
             if data.get("date") != str(settings.now_ist().date()):
                 return False
 
-            self.access_token = data["access_token"]
-            self.kite.set_access_token(self.access_token)
+            enctoken = data["access_token"]
+            self.kite = _make_enctoken_kite(enctoken)
+            self.access_token = enctoken
 
             # Verify token is still valid
             self.kite.profile()
@@ -93,12 +113,12 @@ class ZerodhaAuth:
         except (OSError, NotImplementedError):
             pass
 
-    def _get_request_token(self) -> str:
+    def _login_and_get_enctoken(self) -> str:
         """
         Automate the login flow:
         1. POST credentials to Zerodha login
         2. Submit TOTP
-        3. Extract request_token from redirect URL
+        3. Extract enctoken from session cookies
         """
         session = requests.Session()
 
@@ -137,50 +157,31 @@ class ZerodhaAuth:
         if result.get("status") != "success":
             raise AuthenticationError(f"TOTP verification failed: {result}")
 
-        # Step 3: Get request_token from redirect
-        redirect_url = (
-            f"https://kite.trade/connect/login?api_key={settings.KITE_API_KEY}&v=3"
-        )
-        resp = session.get(redirect_url, allow_redirects=False, timeout=30)
+        # Step 3: Extract enctoken from cookies
+        enctoken = None
+        for cookie in session.cookies:
+            if cookie.name == "enctoken":
+                enctoken = cookie.value
+                break
 
-        if resp.status_code in (301, 302):
-            location = resp.headers.get("Location", "")
-        else:
-            # Sometimes the token is in the response URL after redirects
-            resp = session.get(redirect_url, allow_redirects=True, timeout=30)
-            location = str(resp.url)
-
-        # Parse request_token from redirect URL
-        parsed = urllib.parse.urlparse(location)
-        params = urllib.parse.parse_qs(parsed.query)
-
-        if "request_token" not in params:
+        if not enctoken:
             raise AuthenticationError(
-                f"Could not extract request_token from redirect. URL: {location}"
+                "Login succeeded but no enctoken cookie found"
             )
 
-        request_token = params["request_token"][0]
-        logger.debug(f"Got request_token: {request_token[:8]}...")
-        return request_token
-
-    def _generate_session(self, request_token: str):
-        """Exchange request_token for access_token."""
-        data = self.kite.generate_session(
-            request_token=request_token,
-            api_secret=settings.KITE_API_SECRET,
-        )
-        self.access_token = data["access_token"]
-        self.kite.set_access_token(self.access_token)
-        self._save_cached_token()
+        logger.debug(f"Got enctoken: {enctoken[:8]}...")
+        return enctoken
 
     def _get_password(self) -> str:
         """
         Get Zerodha password.
-        Always prompt at runtime via getpass — never read from env or disk,
-        so the master password cannot leak via .env backups or process env.
+        Uses KITE_PASSWORD from .env if set (required for cron/unattended runs),
+        otherwise falls back to interactive prompt.
         """
-        import getpass
+        if settings.KITE_PASSWORD:
+            return settings.KITE_PASSWORD
 
+        import getpass
         return getpass.getpass("Enter Zerodha password: ")
 
     def get_kite(self) -> KiteConnect:

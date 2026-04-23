@@ -21,6 +21,7 @@ KITE_API_KEY = os.getenv("KITE_API_KEY", "")
 KITE_API_SECRET = os.getenv("KITE_API_SECRET", "")
 KITE_USER_ID = os.getenv("KITE_USER_ID", "")
 KITE_TOTP_SECRET = os.getenv("KITE_TOTP_SECRET", "")
+KITE_PASSWORD = os.getenv("KITE_PASSWORD", "")
 
 # ── Trading Mode ──
 TRADING_MODE = os.getenv("TRADING_MODE", "paper")  # "paper" or "live"
@@ -61,7 +62,7 @@ ORB_VOLUME_MULTIPLIER = 1.5  # Breakout volume must be >= 1.5x average
 INITIAL_CAPITAL = 100000  # Starting capital in Rs (used for paper trading)
 RISK_PER_TRADE_PCT = 1.0  # Max 1% of capital risked per trade
 MAX_DAILY_LOSS_PCT = 3.0  # Stop trading after 3% daily loss
-MAX_TRADES_PER_DAY = 5  # Maximum number of trades in a day
+MAX_TRADES_PER_DAY = 7  # Maximum number of trades in a day
 MAX_OPEN_POSITIONS = 2  # Maximum concurrent open positions
 MIN_RISK_REWARD_RATIO = 2.0  # Minimum 1:2 risk/reward
 MAX_POSITION_PCT = 30.0  # Max 30% of capital in a single position

@@ -5,6 +5,11 @@ The market just opened. Review the opening action and verify the bot is running.
 
 **Audience:** Complete beginner. Explain gaps, opening ranges, and what the bot is doing.
 
+## Telegram notifications
+
+Send a Telegram message at EVERY major step during this command. This helps the user
+monitor the pipeline remotely and catch failures early. Use: `scripts/kite.sh telegram "MSG"`
+
 ## Context files — read first
 
 1. `memory/TRADING-STRATEGY.md` — strategy rules (especially ORB)
@@ -72,11 +77,13 @@ Append to `memory/TRADE-LOG.md`:
 - Bot status: Running / Not running
 ```
 
-### 8. Send Telegram alert (optional)
+### 8. Send Telegram alert (ALWAYS send this)
 
 ```bash
-scripts/kite.sh telegram "Market opened. NIFTY: X (+/-X%). Watching: SYM1, SYM2, SYM3. Bot: running."
+scripts/kite.sh telegram "🔔 Market opened. NIFTY: X (+/-X%). Watching: SYM1, SYM2, SYM3. Bot: running/not running."
 ```
+
+This message is mandatory — always send it so the user knows trading has started.
 
 ### 9. What to do next
 

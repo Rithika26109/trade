@@ -48,12 +48,39 @@ class MarketData:
         self._htf_cache: dict[tuple[str, str], tuple[object, pd.DataFrame]] = {}
 
     def load_instruments(self, exchange: str = "NSE"):
-        """Load and cache instrument list for quick symbol→token lookup."""
-        instruments = self.kite.instruments(exchange)
-        for inst in instruments:
-            key = f"{exchange}:{inst['tradingsymbol']}"
-            self._instruments_cache[key] = inst
-        logger.info(f"Loaded {len(instruments)} instruments from {exchange}")
+        """Load and cache instrument list for quick symbol→token lookup.
+
+        The enctoken auth method doesn't support the /instruments endpoint,
+        so we fetch the publicly available CSV from api.kite.trade instead.
+        Falls back to the kite API for standard auth setups.
+        """
+        import csv
+        import io
+        import requests as _requests
+
+        url = f"https://api.kite.trade/instruments/{exchange}"
+        try:
+            resp = _requests.get(url, timeout=30)
+            resp.raise_for_status()
+            reader = csv.DictReader(io.StringIO(resp.text))
+            count = 0
+            for row in reader:
+                key = f"{exchange}:{row['tradingsymbol']}"
+                row["instrument_token"] = int(row["instrument_token"])
+                row["last_price"] = float(row["last_price"] or 0)
+                row["strike"] = float(row["strike"] or 0)
+                row["tick_size"] = float(row["tick_size"] or 0)
+                row["lot_size"] = int(row["lot_size"] or 0)
+                self._instruments_cache[key] = row
+                count += 1
+            logger.info(f"Loaded {count} instruments from {exchange} (public CSV)")
+        except Exception as e:
+            logger.warning(f"Public CSV fetch failed ({e}), trying kite API...")
+            instruments = self.kite.instruments(exchange)
+            for inst in instruments:
+                key = f"{exchange}:{inst['tradingsymbol']}"
+                self._instruments_cache[key] = inst
+            logger.info(f"Loaded {len(instruments)} instruments from {exchange}")
 
     def get_instrument_token(self, symbol: str, exchange: str = "NSE") -> int:
         """Get numeric instrument token for a symbol."""
@@ -69,15 +96,33 @@ class MarketData:
         """
         Get Last Traded Price for multiple symbols.
         Returns: {"RELIANCE": 2450.50, "INFY": 1520.30, ...}
+
+        Tries kite.ltp() first; falls back to the latest minute candle
+        close when the quote endpoint is unavailable (enctoken auth).
         """
         self._api_rate_limiter.wait()
         keys = [f"{exchange}:{s}" for s in symbols]
-        data = self.kite.ltp(keys)
-        return {
-            s: data[f"{exchange}:{s}"]["last_price"]
-            for s in symbols
-            if f"{exchange}:{s}" in data
-        }
+        try:
+            data = self.kite.ltp(keys)
+            return {
+                s: data[f"{exchange}:{s}"]["last_price"]
+                for s in symbols
+                if f"{exchange}:{s}" in data
+            }
+        except Exception:
+            # Fallback: latest minute candle close
+            result = {}
+            today = now_ist().strftime("%Y-%m-%d")
+            for s in symbols:
+                try:
+                    token = self.get_instrument_token(s, exchange)
+                    self._hist_rate_limiter.wait()
+                    candles = self.kite.historical_data(token, today, today, "minute")
+                    if candles:
+                        result[s] = candles[-1]["close"]
+                except Exception as e:
+                    logger.debug(f"LTP fallback failed for {s}: {e}")
+            return result
 
     def get_quote(self, symbols: list[str], exchange: str = "NSE") -> dict:
         """Get full quote (OHLC, volume, depth) for symbols."""

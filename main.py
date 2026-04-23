@@ -268,6 +268,11 @@ class TradingBot:
         """Start WebSocket for real-time stop-loss/target monitoring."""
         if not self.kite or not self.instrument_tokens:
             return
+        # WebSocket doesn't work with enctoken auth — skip to avoid
+        # infinite reconnect spam. The polling loop handles exits fine.
+        if not self.kite.access_token:
+            logger.info("WebSocket skipped (enctoken auth — using polling fallback)")
+            return
         try:
             self.ticker = TickerManager(
                 api_key=settings.KITE_API_KEY,
@@ -653,7 +658,7 @@ class TradingBot:
         try:
             import subprocess
             subprocess.run(
-                ["python", "scripts/eod_commit.py"],
+                ["python3", "scripts/eod_commit.py"],
                 cwd=str(settings.BASE_DIR),
                 timeout=45,
                 check=False,
