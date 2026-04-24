@@ -541,6 +541,10 @@ class TradingBot:
                 except TypeError:
                     signal = self.strategy.analyze(df, symbol, df_htf=df_htf, regime=regime)
                 if signal.signal == Signal.HOLD:
+                    logger.debug(
+                        f"[SIGNAL] {symbol} -> HOLD | "
+                        f"strategy={signal.strategy} | reason={signal.reason}"
+                    )
                     continue
 
                 # ── Daily-plan bias filter ──
@@ -566,6 +570,10 @@ class TradingBot:
                 # Risk check + position sizing
                 approved = self.risk_manager.evaluate(signal)
                 if approved is None:
+                    logger.debug(
+                        f"[RISK] {symbol} -> REJECTED | "
+                        f"signal={signal.signal.value} | reason={signal.reason}"
+                    )
                     continue
 
                 # Place the trade

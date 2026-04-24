@@ -188,26 +188,30 @@ def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def ema_crossover(df: pd.DataFrame) -> str | None:
+def ema_crossover(df: pd.DataFrame, lookback: int = 1) -> str | None:
     """
     Check for EMA crossover on the latest candles.
+    With lookback > 1, scans the last N candle-pairs for the most recent
+    crossover (useful for catch-up after mid-session restart).
     Returns: "BULLISH", "BEARISH", or None
     """
     if len(df) < 2 or "ema_fast" not in df.columns:
         return None
 
-    prev_fast = df["ema_fast"].iloc[-2]
-    prev_slow = df["ema_slow"].iloc[-2]
-    curr_fast = df["ema_fast"].iloc[-1]
-    curr_slow = df["ema_slow"].iloc[-1]
+    for i in range(1, min(lookback + 1, len(df))):
+        prev_fast = df["ema_fast"].iloc[-(i + 1)]
+        prev_slow = df["ema_slow"].iloc[-(i + 1)]
+        curr_fast = df["ema_fast"].iloc[-i]
+        curr_slow = df["ema_slow"].iloc[-i]
 
-    if pd.isna(prev_fast) or pd.isna(curr_fast):
-        return None
+        if pd.isna(prev_fast) or pd.isna(curr_fast):
+            continue
 
-    if prev_fast <= prev_slow and curr_fast > curr_slow:
-        return "BULLISH"
-    elif prev_fast >= prev_slow and curr_fast < curr_slow:
-        return "BEARISH"
+        if prev_fast <= prev_slow and curr_fast > curr_slow:
+            return "BULLISH"
+        elif prev_fast >= prev_slow and curr_fast < curr_slow:
+            return "BEARISH"
+
     return None
 
 

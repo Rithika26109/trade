@@ -127,7 +127,16 @@ class ORBStrategy(BaseStrategy):
                     htf_bullish = htf_fast > htf_slow
 
         # ── BREAKOUT ABOVE (BUY) ──
-        if current_close > orb_high and prev_close <= orb_high and volume_confirmed:
+        # Check current candle crossover, or catch-up scan for recent breakout
+        breakout_above = (current_close > orb_high and prev_close <= orb_high)
+        if not breakout_above and current_close > orb_high:
+            catchup = getattr(settings, 'CATCH_UP_CANDLES', 0)
+            for i in range(2, min(catchup + 2, len(df))):
+                if df["close"].iloc[-i] > orb_high and df["close"].iloc[-(i + 1)] <= orb_high:
+                    breakout_above = True
+                    break
+
+        if breakout_above and volume_confirmed:
             # HTF filter: skip BUY if 15-min trend is bearish
             if htf_bullish is not None and not htf_bullish:
                 return self._hold(symbol, "ORB BUY rejected: 15-min trend bearish")
@@ -172,7 +181,15 @@ class ORBStrategy(BaseStrategy):
             return signal
 
         # ── BREAKDOWN BELOW (SELL) ──
-        if current_close < orb_low and prev_close >= orb_low and volume_confirmed:
+        breakdown_below = (current_close < orb_low and prev_close >= orb_low)
+        if not breakdown_below and current_close < orb_low:
+            catchup = getattr(settings, 'CATCH_UP_CANDLES', 0)
+            for i in range(2, min(catchup + 2, len(df))):
+                if df["close"].iloc[-i] < orb_low and df["close"].iloc[-(i + 1)] >= orb_low:
+                    breakdown_below = True
+                    break
+
+        if breakdown_below and volume_confirmed:
             # HTF filter: skip SELL if 15-min trend is bullish
             if htf_bullish is not None and htf_bullish:
                 return self._hold(symbol, "ORB SELL rejected: 15-min trend bullish")

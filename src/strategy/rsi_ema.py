@@ -63,8 +63,9 @@ class RSIEMAStrategy(BaseStrategy):
         has_vwap = "vwap" in df.columns and pd.notna(df["vwap"].iloc[-1])
         vwap = df["vwap"].iloc[-1] if has_vwap else None
 
-        # Check EMA crossover
-        crossover = ema_crossover(df)
+        # Check EMA crossover (with catch-up lookback for mid-session starts)
+        catchup = getattr(settings, 'CATCH_UP_CANDLES', 1)
+        crossover = ema_crossover(df, lookback=catchup)
 
         # ── Check for RSI divergence (stronger signal) ──
         divergence = self._detect_rsi_divergence(df)

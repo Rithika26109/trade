@@ -29,6 +29,14 @@ fi
 
 mkdir -p "$LOG_DIR"
 
+# ── Prevent double-launch (e.g. manual run while cron is active). ──
+PIDFILE="$LOG_DIR/bot.pid"
+if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+    echo "[run_bot] Already running (pid=$(cat "$PIDFILE")). Aborting." >&2
+    exit 0
+fi
+echo $$ > "$PIDFILE"
+
 # ── Heartbeat: written before anything that might fail, so even if
 #    the bot dies during setup, the routine can still see we tried. ──
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -56,7 +64,7 @@ EOF
 # -i: prevent idle sleep. -t seconds (24000 = 6h40m).
 caffeinate -i -t 24000 &
 CAFFEINATE_PID=$!
-trap 'kill "$CAFFEINATE_PID" 2>/dev/null || true' EXIT
+trap 'rm -f "$PIDFILE"; kill "$CAFFEINATE_PID" 2>/dev/null || true' EXIT
 
 echo "[run_bot] $(date) launching main.py --${MODE} (caffeinate pid=$CAFFEINATE_PID)" \
     | tee -a "$BOT_LOG"

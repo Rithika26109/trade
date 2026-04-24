@@ -74,6 +74,9 @@ class StrategyOrchestrator(BaseStrategy):
             try:
                 sig = strategy.analyze(df, symbol, df_htf=df_htf, regime=regime)
                 if sig.signal == Signal.HOLD:
+                    logger.debug(
+                        f"[MULTI] {strategy.name} {symbol} -> HOLD: {sig.reason}"
+                    )
                     continue
                 # Regime-adaptive gating/weighting
                 if self.tracker is not None:

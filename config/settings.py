@@ -27,7 +27,7 @@ KITE_PASSWORD = os.getenv("KITE_PASSWORD", "")
 TRADING_MODE = os.getenv("TRADING_MODE", "paper")  # "paper" or "live"
 
 # ── Strategy Settings ──
-STRATEGY = "ORB"  # Options: "ORB", "RSI_EMA", "VWAP_SUPERTREND"
+STRATEGY = "MULTI"  # Options: "ORB", "RSI_EMA", "VWAP_SUPERTREND", "MULTI"
 TIMEFRAME = "5minute"  # Candle interval for indicators
 ORB_PERIOD_MINUTES = 15  # Opening range: first 15 minutes (9:15 - 9:30)
 
@@ -57,6 +57,11 @@ RSI_SELL_MAX = 70
 
 # ── ORB Strategy ──
 ORB_VOLUME_MULTIPLIER = 1.5  # Breakout volume must be >= 1.5x average
+
+# ── Catch-Up Scan ──
+# When the bot starts mid-session, look back this many 5-min candles
+# (6 candles = 30 minutes) to detect recent crossovers/breakouts/flips.
+CATCH_UP_CANDLES = 6
 
 # ── Risk Management ──
 INITIAL_CAPITAL = 100000  # Starting capital in Rs (used for paper trading)

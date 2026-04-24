@@ -249,10 +249,19 @@ class MarketData:
         if df.empty:
             return None
 
-        market_open = df["date"].iloc[0].replace(hour=9, minute=15, second=0)
+        # Use today's date explicitly — df may start with yesterday's candles
+        # because get_todays_candles(days=1) fetches from now-24h.
+        today = now_ist()
+        market_open = today.replace(hour=9, minute=15, second=0, microsecond=0)
         range_end = market_open + timedelta(minutes=minutes)
 
-        range_df = df[(df["date"] >= market_open) & (df["date"] < range_end)]
+        df_today = df[df["date"].dt.date == today.date()]
+        if df_today.empty:
+            return None
+
+        range_df = df_today[
+            (df_today["date"] >= market_open) & (df_today["date"] < range_end)
+        ]
         if range_df.empty:
             return None
 

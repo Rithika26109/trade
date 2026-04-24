@@ -54,8 +54,10 @@ class VWAPSupertrendStrategy(BaseStrategy):
         st_value = df["supertrend"].iloc[-1]
         atr = df["atr"].iloc[-1]
 
-        # Get recent supertrend directions for confirmation
-        recent_dirs = df["supertrend_direction"].iloc[-(confirm_candles + 2):].tolist()
+        # Get recent supertrend directions for confirmation (with catch-up window)
+        catchup = getattr(settings, 'CATCH_UP_CANDLES', 0)
+        window = confirm_candles + 2 + catchup
+        recent_dirs = df["supertrend_direction"].iloc[-window:].tolist()
 
         if any(pd.isna(v) for v in [vwap, st_value, atr]) or any(pd.isna(d) for d in recent_dirs):
             return self._hold(symbol, "Indicators not ready")
@@ -176,55 +178,47 @@ class VWAPSupertrendStrategy(BaseStrategy):
     ) -> tuple[bool, bool]:
         """
         Volume-weighted Supertrend flip confirmation.
-        Instead of requiring N flat candles, weight by volume.
-        High-volume confirmation candles count more.
+        Scans the window for the most recent direction change, then checks
+        that enough confirmed candles follow it (by volume weight).
         """
+        # Find the most recent flip point in the window
+        flip_idx = None
+        for i in range(len(recent_dirs) - 1):
+            if recent_dirs[i] != recent_dirs[i + 1]:
+                flip_idx = i  # keep scanning — we want the latest flip
+
+        if flip_idx is None:
+            return False, False
+
+        old_dir = recent_dirs[flip_idx]
+        new_dir = recent_dirs[flip_idx + 1]
+
+        # All candles after the flip must stay in the new direction
+        post_flip = recent_dirs[flip_idx + 1:]
+        if not all(d == new_dir for d in post_flip):
+            return False, False
+
         # Calculate average volume for normalization
         avg_vol = df["volume"].iloc[-20:].mean() if "volume" in df.columns and len(df) >= 20 else 0
 
         if avg_vol <= 0:
-            # Fall back to simple candle count confirmation
-            st_flipped_bullish = (
-                recent_dirs[0] == -1 and all(d == 1 for d in recent_dirs[1:])
+            # Simple candle count confirmation
+            confirmed = len(post_flip) >= confirm_candles
+            return (
+                old_dir == -1 and new_dir == 1 and confirmed,
+                old_dir == 1 and new_dir == -1 and confirmed,
             )
-            st_flipped_bearish = (
-                recent_dirs[0] == 1 and all(d == -1 for d in recent_dirs[1:])
-            )
-            return st_flipped_bullish, st_flipped_bearish
 
         # Volume-weighted confirmation
-        min_weighted_count = confirm_candles + 0.5  # Slightly more than simple count
+        min_weighted_count = confirm_candles + 0.5
+        weighted = 0
+        for i in range(flip_idx + 1, len(recent_dirs)):
+            idx = -(len(recent_dirs) - i)
+            vol = df["volume"].iloc[idx] if "volume" in df.columns else avg_vol
+            vol_weight = min(vol / avg_vol, 2.0) if avg_vol > 0 else 1.0
+            weighted += vol_weight
 
-        # Check bullish flip: was bearish, now bullish with volume weight
-        if recent_dirs[0] == -1:
-            weighted = 0
-            for i in range(1, len(recent_dirs)):
-                if recent_dirs[i] == 1:
-                    idx = -(len(recent_dirs) - i)
-                    vol = df["volume"].iloc[idx] if "volume" in df.columns else avg_vol
-                    vol_weight = min(vol / avg_vol, 2.0) if avg_vol > 0 else 1.0
-                    weighted += vol_weight
-                else:
-                    weighted = 0  # Reset if not consecutive
-                    break
-            st_flipped_bullish = weighted >= min_weighted_count
-        else:
-            st_flipped_bullish = False
-
-        # Check bearish flip
-        if recent_dirs[0] == 1:
-            weighted = 0
-            for i in range(1, len(recent_dirs)):
-                if recent_dirs[i] == -1:
-                    idx = -(len(recent_dirs) - i)
-                    vol = df["volume"].iloc[idx] if "volume" in df.columns else avg_vol
-                    vol_weight = min(vol / avg_vol, 2.0) if avg_vol > 0 else 1.0
-                    weighted += vol_weight
-                else:
-                    weighted = 0
-                    break
-            st_flipped_bearish = weighted >= min_weighted_count
-        else:
-            st_flipped_bearish = False
-
-        return st_flipped_bullish, st_flipped_bearish
+        return (
+            old_dir == -1 and new_dir == 1 and weighted >= min_weighted_count,
+            old_dir == 1 and new_dir == -1 and weighted >= min_weighted_count,
+        )
