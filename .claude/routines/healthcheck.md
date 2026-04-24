@@ -123,13 +123,21 @@ Append to `logs/journal/YYYY-MM-DD.md` (create if absent):
 Use the same YAML-in-comments style already used by the other routines'
 sections so downstream grep still works.
 
-### 6. Commit & push
+### 6. Commit, push to branch, and open PR
 ```bash
+BRANCH="status/${TODAY}"
+git checkout -b "$BRANCH"
 git add logs/journal/${TODAY}.md
-git -c user.name="trade-healthcheck" -c user.email="bot@localhost" \
-    commit -m "status: ${TODAY}" --quiet
-git push --quiet
+git commit -m "status: ${TODAY}" --quiet
+git push -u origin "$BRANCH" --quiet
+gh pr create \
+  --base main \
+  --head "$BRANCH" \
+  --title "status: ${TODAY}" \
+  --body "Bot healthcheck result for ${TODAY}."
 ```
+
+**Do NOT push directly to `main`.** Always use a branch + PR.
 
 ## Never do
 - Do not restart or launch the bot yourself — you have no Kite credentials

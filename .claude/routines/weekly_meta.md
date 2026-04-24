@@ -110,14 +110,23 @@ Edit `.claude/routines/premarket.md`. Typical edits:
 **Diff carefully.** Test that your edits still make sense read top-to-bottom.
 Preserve the HARD RULES block verbatim.
 
-### 5. Commit
+### 5. Commit, push to branch, and open PR
 ```bash
-git add .claude/routines/premarket.md logs/journal/weekly/
-git commit -m "meta: weekly review YYYY-Www"
-git push
+WEEK=$(date -u +%Y-W%V)
+BRANCH="meta/${WEEK}"
+git checkout -b "$BRANCH"
+git add .claude/routines/premarket.md logs/journal/weekly/ memory/WEEKLY-REVIEW.md memory/TRADING-STRATEGY.md memory/PROJECT-TRADING-CHALLENGE.md
+git commit -m "meta: weekly review ${WEEK}"
+git push -u origin "$BRANCH"
+gh pr create \
+  --base main \
+  --head "$BRANCH" \
+  --title "meta: weekly review ${WEEK}" \
+  --body "Weekly meta-review for ${WEEK}. Includes premarket.md refinements if warranted."
 ```
 
-Your edits take effect the following Monday's pre-market run.
+**Do NOT push directly to `main`.** Always use a branch + PR.
+Your edits take effect once the PR is merged (before Monday's pre-market run).
 
 ## Update files when done
 

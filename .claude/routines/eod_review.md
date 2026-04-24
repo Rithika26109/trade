@@ -119,12 +119,22 @@ Append to today's journal:
 Fill in the placeholders at the top of today's journal: `pnl`, `trades`,
 `win_rate`, `regime_actual`. Use the numbers from the `## Trading Day` block.
 
-### 6. Commit and push
+### 6. Commit, push to branch, and open PR
 ```bash
-git add logs/journal/
-git commit -m "eod-review: $(date -u +%Y-%m-%d)"
-git push
+TODAY=$(date -u +%Y-%m-%d)
+BRANCH="eod/${TODAY}"
+git checkout -b "$BRANCH"
+git add logs/journal/ memory/TRADE-LOG.md
+git commit -m "eod-review: ${TODAY}"
+git push -u origin "$BRANCH"
+gh pr create \
+  --base main \
+  --head "$BRANCH" \
+  --title "eod-review: ${TODAY}" \
+  --body "End-of-day review and lessons for ${TODAY}."
 ```
+
+**Do NOT push directly to `main`.** Always use a branch + PR.
 
 ## Update files when done
 

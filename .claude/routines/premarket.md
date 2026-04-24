@@ -126,14 +126,26 @@ python3 scripts/validate_plan.py config/daily_plan.json
 If it prints errors, fix the plan and re-validate. Do not commit an
 invalid plan.
 
-### 7. Commit and push
+### 7. Commit, push to branch, and open PR
 ```bash
+TODAY=$(date -u +%Y-%m-%d)
+BRANCH="plan/${TODAY}"
+git checkout -b "$BRANCH"
 git add config/daily_plan.json logs/journal/ data/research/
-git commit -m "plan: $(date -u +%Y-%m-%d)"
-git push
+git commit -m "plan: ${TODAY}"
+git push -u origin "$BRANCH"
 ```
 
-The local bot will `git pull` at ~09:10 IST and consume this plan.
+Then open a PR to `main` so the user can review before merging:
+```bash
+gh pr create \
+  --base main \
+  --head "$BRANCH" \
+  --title "plan: ${TODAY}" \
+  --body "Auto-generated pre-market plan for ${TODAY}. Merge before 09:10 IST so the bot picks it up."
+```
+
+**Do NOT push directly to `main`.** Always use a branch + PR.
 
 ## Update files when done
 
