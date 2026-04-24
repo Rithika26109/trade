@@ -465,6 +465,9 @@ class TradingBot:
                     symbol=order.symbol,
                     signal=order.signal.value,
                     strategy=order.strategy,
+                    entry_price=order.executed_price,
+                    exit_price=order.exit_price,
+                    quantity=order.quantity,
                     pnl=order.pnl,
                     reason=getattr(order, "exit_reason", None) or order.reason,
                 )
@@ -642,6 +645,19 @@ class TradingBot:
         for order in self.order_manager.orders:
             if order.order_id not in self._logged_order_ids:
                 self.db.log_trade(order)
+                self.risk_manager.record_trade_result(order.pnl)
+                self.risk_manager.update_capital(self.risk_manager.capital + order.pnl)
+                journal.emit_event(
+                    "exit",
+                    symbol=order.symbol,
+                    signal=order.signal.value,
+                    strategy=order.strategy,
+                    entry_price=order.executed_price,
+                    exit_price=order.exit_price,
+                    quantity=order.quantity,
+                    pnl=order.pnl,
+                    reason="End of day square-off",
+                )
                 self._logged_order_ids.add(order.order_id)
         self.db.clear_open_positions()
 

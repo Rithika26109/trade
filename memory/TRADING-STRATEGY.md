@@ -1,6 +1,6 @@
 # Active Trading Strategy
 
-Last updated: 2026-04-21
+Last updated: 2026-04-24
 
 ## Current Mode: PAPER
 
@@ -20,7 +20,7 @@ Last updated: 2026-04-21
 
 - **Timeframe:** 5-minute candles
 - **BUY:** 9 EMA crosses above 21 EMA, RSI 40-70, price above VWAP
-- **SELL:** 9 EMA crosses below 21 EMA, RSI 30-60, price below VWAP
+- **SELL:** 9 EMA crosses below 21 EMA, RSI 30-60 **(HARD RULE: reject if RSI < 30 — oversold bounce risk)**, price below VWAP
 - **Stop-loss:** 1.5x ATR from entry
 - **Target:** 2x stop distance (1:2 R:R)
 
@@ -71,4 +71,6 @@ NIFTY 50 large-caps: RELIANCE, TCS, HDFCBANK, INFY, ICICIBANK, KOTAKBANK, HINDUN
 
 _Updated by /weekly-review and /daily-summary commands. Most recent first._
 
-<!-- Lessons will be appended here as trading progresses -->
+- **#lesson 2026-04-24:** Exit events not written during EOD square-off — fix exit logger to fire on all exit paths (target, SL, EOD close), not just during active signal processing.
+- **#lesson 2026-04-24:** Avoid shorting when RSI < 30 at entry. In STRONG_TREND_DOWN, wait for RSI to bounce to 40-50 before re-entering short — catching a pullback gives better R:R than chasing an already-oversold move.
+- **#lesson 2026-04-24:** Track win rate by MULTI confirmation count (1 vs 2 vs 3 strategies agreeing). Hypothesis: 2+ confirmations should produce higher win rates. Data needed.

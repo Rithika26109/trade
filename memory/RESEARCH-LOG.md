@@ -24,11 +24,9 @@ Daily market research, macro observations, and recurring patterns. Most recent f
 
 _Patterns observed across multiple sessions. Updated by /weekly-review._
 
-<!-- Patterns will be added here as they emerge, e.g.:
-- IT stocks tend to gap down on Mondays after US tech sell-off
-- Banking stocks follow NIFTY Bank index more than broad NIFTY
-- ORB works best on trending days (VIX 12-18)
--->
+- **RSI entry zone matters for shorts:** RSI 40-50 entries profitable, RSI < 30 entries lose (oversold bounce risk). Sample: 3 trades, Apr 24.
+- **STRONG_TREND_DOWN regime produces clean short signals** — all 3 shorts on Apr 24 were directionally correct, only the oversold entry lost.
+- **Bot late-start misses ORB window** — session started 13:49, no ORB data captured. Full 9:30 start needed.
 
 ---
 

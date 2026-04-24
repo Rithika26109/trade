@@ -70,14 +70,20 @@ TRADING_MODE=paper python main.py
 TRADING_MODE=live python main.py
 ```
 
-## Auto-run (local cron + cloud healthcheck)
+## Auto-run (launchd + cloud healthcheck)
 
-Day-to-day the bot launches itself:
-- **06:30 IST** — `scripts/refresh_kite_token.py` rotates the Kite access token (cron).
-- **09:05 IST** — `scripts/run_bot.sh` writes a heartbeat, starts `caffeinate`, and execs `main.py --paper` (cron).
-- **09:20 IST** — cloud `bot-healthcheck` routine verifies the heartbeat; alerts via Telegram on failure.
-- **15:35 IST** — `scripts/eod_commit.py` pushes journal + metrics.
-- **16:30 IST** — cloud `eod-review` routine grades the day.
+All local scheduling uses **launchd** (`~/Library/LaunchAgents/com.trade.*.plist`).
+Unlike cron, launchd runs missed jobs when the Mac wakes from sleep.
+
+- **07:50 IST** — `com.trade.token-refresh` — rotates the Kite access token.
+- **08:03 IST** — `com.trade.claude-premarket` — morning research via Claude.
+- **09:05 IST** — `com.trade.bot-launch` — writes heartbeat, starts `caffeinate`, execs `main.py --paper`.
+- **09:15 IST** — `com.trade.bot-healthcheck` — verifies bot is running, Telegram alert on failure.
+- **09:22 IST** — `com.trade.claude-market-open` — opening bell review via Claude.
+- **12:03 IST** — `com.trade.claude-midday` — mid-session check via Claude.
+- **15:33 IST** — `com.trade.claude-daily-summary` — end-of-day review via Claude.
+- **15:35 IST** — `com.trade.eod-commit` — pushes journal + metrics.
+- **16:07 IST** — `com.trade.claude-weekly-review` — Friday weekly recap (Opus).
 
 See [docs/09-CLAUDE-ROUTINES-SETUP.md](docs/09-CLAUDE-ROUTINES-SETUP.md) for full setup.
 

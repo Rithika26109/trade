@@ -26,10 +26,11 @@ Weekly performance summaries and meta-learning. Most recent first.
 | Metric | Value |
 |--------|-------|
 | Weeks completed | 1 |
-| Cumulative P&L | Rs 0 |
-| Overall win rate | — (no real trades yet) |
-| Best strategy | — |
-| Total trades | 0 (real market) |
+| Cumulative P&L | Rs +19.64 (paper) |
+| Overall win rate | 67% (2W / 3T) |
+| Best strategy | RSI+EMA (MULTI) — only strategy used so far |
+| Total trades | 3 (paper) |
+| Sessions completed | 1 |
 
 ---
 
@@ -37,27 +38,27 @@ Weekly performance summaries and meta-learning. Most recent first.
 
 _Active targets for self-improvement. Updated weekly._
 
-1. **Fix Kite API auth** — enctoken vs api.kite.trade endpoint routing (blocker #1)
-2. **Verify token refresh end-to-end** — must validate token after refresh, not assume success
-3. **Run first complete paper session** (9:30 AM - 3:15 PM with live data)
-4. Complete first 10 real paper trades and establish baseline metrics
+1. **Fix exit logger bug** — exits must write to JSONL on all exit paths (target, SL, EOD). Blocker for accurate metrics.
+2. **Add position reconciliation on startup** — query Kite for open positions on restart, re-attach tracking.
+3. **Run full 9:30-3:15 session** — boot before market open, run entire day.
+4. **Enforce RSI < 30 filter** — hard-reject SELL signals when RSI < 30 at entry.
 
 ---
 
 <!-- Weekly summaries will be prepended here by /weekly-review command -->
 
-## Week 2026-W17 (Mon Apr 20 - Thu Apr 23) — Setup Week
+## Week 2026-W17 (Mon Apr 20 - Fri Apr 24) — First Trading Week
 
-- Days traded: 0 (1 attempted session on Apr 23, failed due to API auth)
-- Total P&L: Rs 0
-- Win rate: N/A (no real trades)
-- Best day: N/A
-- Worst day: N/A
-- Strategy breakdown: ORB 0/0, RSI+EMA 0/0, VWAP+ST 0/0
-- Regime prediction accuracy: N/A (no VIX/NIFTY data fetched)
-- Key finding: Kite enctoken auth fails on /oms/quote endpoint ("Route not found" / "Bad Request")
-- Blockers identified: (1) API auth routing, (2) token refresh silent failure, (3) missing tqdm, (4) python→python3 in eod_commit, (5) no daily_plan.json
-- What worked: Pre-market research quality, cron automation wired up, graceful auth failure handling
-- Promoted lessons: None yet (no trading data)
-- Changes made: None (infrastructure week)
-- Next week goals: Fix Kite API auth, verify token refresh e2e, run first real paper session
+- Days traded: 1 (Fri Apr 24; Thu Apr 23 attempted, failed on API auth)
+- Total P&L: Rs +19.64 (paper)
+- Win rate: 67% (2W / 3T closed)
+- Best day: 2026-04-24 (Rs +19.64, 3 trades, first successful session)
+- Worst day: 2026-04-23 (Rs 0, API auth blocked all trading)
+- Strategy breakdown: MULTI(RSI+EMA) 2W/3T net +19.64; ORB 0/0; VWAP+ST 0/0
+- Regime prediction accuracy: 1/1 (STRONG_TREND_DOWN correct on Apr 24)
+- Key finding: RSI entry quality directly impacts outcomes — RSI 40-50 zone produced wins, RSI 25.9 entry lost
+- Bugs found: (1) Exit logger doesn't write to JSONL on EOD square-off, (2) bot restarts orphan positions (no reconciliation), (3) journal YAML metrics all zeros despite real trades
+- Promoted lessons: RSI < 30 filter rule, exit logger must fire on all exit paths, track win rate by MULTI confirmation count
+- What worked: Regime engine correctly called STRONG_TREND_DOWN, all short signals aligned, cron automation operational
+- Infrastructure: Bot fully operational, first session ran 13:49-15:02 IST (partial day)
+- Next week goals: Fix exit logger, add position reconciliation, run full 9:30-3:15 session, enforce RSI<30 filter

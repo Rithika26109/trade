@@ -19,6 +19,13 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 <!-- Daily summaries will be prepended here by /daily-summary and /market-open commands -->
 
+## 2026-04-24 (Friday) — EOD CONFIRMED
+- Regime: STRONG_TREND_DOWN | VIX: N/A
+- Trades: 3 closed (of 5 entries, 2 orphaned during restarts) | Wins: 2 | Losses: 1 | Win Rate: 67%
+- P&L: Rs +19.64 (paper) — recovered from bot log; JSONL trade journal empty (exit logger bug)
+- Key trades: SELL INFY @1153.52→1155.00 Rs -36.93 (RSI=25.9, oversold entry), SELL RELIANCE @1327.74→1326.80 Rs +20.59 (RSI=42.7), SELL ICICIBANK @1328.94→1327.30 Rs +35.97 (RSI=48.2)
+- Notes: Session 1 complete. Bot correctly identified STRONG_TREND_DOWN and fired all SELL signals. All 3 exits via EOD square-off (no target/SL hits). INFY entry violated RSI<30 rule (RSI=25.9). 2 orphaned positions lost during bot restarts (ICICIBANK qty=22, TCS qty=12). Exit logger bug: exits logged to bot log but not JSONL — fix before Monday.
+
 ## 2026-04-23 (Thursday)
 - Regime: N/A (Quote API unavailable) | VIX: N/A
 - Trades: 0 | Wins: 0 | Losses: 0 | Win Rate: N/A
