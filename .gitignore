@@ -16,6 +16,8 @@ venv/
 # Data
 data/historical/*.csv
 data/historical/*.json
+data/research/
+data/trades.db
 
 # Logs
 logs/
