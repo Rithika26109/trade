@@ -1,0 +1,3 @@
+# Keep the journal directory tracked, even when empty.
+# Per-day files are gitignored-by-absence — they're always created by
+# the routines or the bot, never by hand.

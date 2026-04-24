@@ -178,7 +178,7 @@ class TestRSIEMAStrategy:
         assert result.signal == Signal.SELL
 
     def test_rsi_ema_adx_filter(self):
-        """ADX < 20 -> HOLD regardless of crossover."""
+        """ADX < ADX_RANGING -> HOLD regardless of crossover."""
         strat = RSIEMAStrategy()
         rows = self._base_rows(10)
         # Set up a bullish crossover
@@ -189,7 +189,7 @@ class TestRSIEMAStrategy:
         rows[-1]["rsi"] = 42.0
         rows[-1]["close"] = 2012.0
         rows[-1]["vwap"] = 2005.0
-        rows[-1]["adx"] = 15.0  # Below ADX threshold
+        rows[-1]["adx"] = 12.0  # Below ADX_RANGING threshold
 
         df = _make_df(rows)
         result = strat.analyze(df, "INFY")

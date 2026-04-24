@@ -55,16 +55,16 @@ class TestMarketRegime:
         assert regime == MarketRegime.STRONG_TREND_DOWN
 
     def test_ranging_detection(self):
-        """ADX < 20 with normal BB bandwidth -> RANGING."""
-        df = _make_regime_df(adx=15, bb_bandwidth=0.05, bb_bandwidth_avg=0.05)
+        """ADX < ADX_RANGING with normal BB bandwidth -> RANGING."""
+        df = _make_regime_df(adx=12, bb_bandwidth=0.05, bb_bandwidth_avg=0.05)
         regime = detect_regime(df)
         assert regime == MarketRegime.RANGING
 
     def test_volatile_detection(self):
-        """ADX < 20 with BB bandwidth > 2x average -> VOLATILE."""
+        """ADX < ADX_RANGING with BB bandwidth > 2x average -> VOLATILE."""
         # Average bb_bandwidth ~ 0.04, latest = 0.10 (>2x avg)
         df = _make_regime_df(
-            adx=15,
+            adx=12,
             bb_bandwidth=0.10,
             bb_bandwidth_avg=0.04,
             n=25,
@@ -90,3 +90,15 @@ class TestMarketRegime:
         assert MarketRegime.TREND_DOWN.is_trending is True
         assert MarketRegime.RANGING.is_trending is False
         assert MarketRegime.VOLATILE.is_trending is False
+
+    def test_weak_trend_up_detection(self):
+        """ADX between ADX_RANGING and ADX_TREND -> TREND_UP (not RANGING)."""
+        df = _make_regime_df(adx=22, plus_di=28, minus_di=18)
+        regime = detect_regime(df)
+        assert regime == MarketRegime.TREND_UP
+
+    def test_weak_trend_down_detection(self):
+        """ADX between ADX_RANGING and ADX_TREND with bearish DI -> TREND_DOWN."""
+        df = _make_regime_df(adx=18, plus_di=15, minus_di=25)
+        regime = detect_regime(df)
+        assert regime == MarketRegime.TREND_DOWN

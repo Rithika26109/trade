@@ -145,8 +145,8 @@ def detect_regime(df: pd.DataFrame) -> MarketRegime:
 
         return MarketRegime.RANGING
 
-    # ADX between ranging and trend thresholds — treat as weak ranging
-    return MarketRegime.RANGING
+    # ADX between ranging and trend thresholds — weak but directional
+    return MarketRegime.TREND_UP if bullish_direction else MarketRegime.TREND_DOWN
 
 
 def get_regime_multiplier(regime: MarketRegime) -> float:

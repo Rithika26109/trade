@@ -43,11 +43,11 @@ MACD_SIGNAL = 9
 BOLLINGER_PERIOD = 20
 BOLLINGER_STD = 2.0
 ATR_PERIOD = 14
-ATR_MULTIPLIER = 1.5  # For stop-loss calculation
+ATR_MULTIPLIER = 2.0  # For stop-loss calculation
 SUPERTREND_PERIOD = 10
 SUPERTREND_MULTIPLIER = 3.0
 VWAP_ENABLED = True
-SUPERTREND_CONFIRMATION_CANDLES = 2  # Candles to confirm Supertrend flip
+SUPERTREND_CONFIRMATION_CANDLES = 1  # Candles to confirm Supertrend flip
 
 # ── RSI Strategy Ranges ──
 RSI_BUY_MIN = 30  # Buy when RSI recovering from oversold
@@ -68,8 +68,8 @@ INITIAL_CAPITAL = 100000  # Starting capital in Rs (used for paper trading)
 RISK_PER_TRADE_PCT = 1.0  # Max 1% of capital risked per trade
 MAX_DAILY_LOSS_PCT = 3.0  # Stop trading after 3% daily loss
 MAX_TRADES_PER_DAY = 7  # Maximum number of trades in a day
-MAX_OPEN_POSITIONS = 2  # Maximum concurrent open positions
-MIN_RISK_REWARD_RATIO = 2.0  # Minimum 1:2 risk/reward
+MAX_OPEN_POSITIONS = 4  # Maximum concurrent open positions
+MIN_RISK_REWARD_RATIO = 1.5  # Minimum 1:1.5 risk/reward
 MAX_POSITION_PCT = 30.0  # Max 30% of capital in a single position
 MAX_CONSECUTIVE_LOSSES = 3  # Pause after 3 consecutive losses
 PAUSE_AFTER_LOSSES_MINUTES = 30  # Pause duration after consecutive losses
@@ -86,11 +86,11 @@ MAX_INTRADAY_DRAWDOWN_PCT = 2.0  # Stop trading if drawdown from peak > 2%
 ENABLE_REGIME_DETECTION = True
 ADX_STRONG_TREND = 40  # ADX above this = strong trend
 ADX_TREND = 25  # ADX above this = trend
-ADX_RANGING = 20  # ADX below this = ranging/choppy
+ADX_RANGING = 15  # ADX below this = ranging/choppy
 
 # ── Confluence Scoring ──
 ENABLE_CONFLUENCE_SCORING = True
-CONFLUENCE_THRESHOLD = 55  # Minimum score (0-100) to take a trade
+CONFLUENCE_THRESHOLD = 40  # Minimum score (0-100) to take a trade
 
 # ── Volatility (VIX) Scaling ──
 VOLATILITY_SCALING_ENABLED = True
@@ -207,7 +207,7 @@ CORRELATION_LIMIT_ENABLED = True
 CORRELATION_LIMIT_THRESHOLD = 0.7      # avg corr with open positions
 CORRELATION_LOOKBACK_DAYS = 20
 KELLY_USE_DB_HISTORY = True            # include DB-closed trades in Kelly
-COSTS_ROUND_TRIP_BPS = 8.0             # brokerage+STT+slippage proxy (bps each way-sum)
+COSTS_ROUND_TRIP_BPS = 0.0             # Paper mode: no cost deduction (slippage handled separately)
 FAT_FINGER_MAX_NOTIONAL_PCT = 40.0     # absolute hard cap notional % of capital
 PERSIST_INTRADAY_HWM = True            # persist HWM + daily_loss across restart
 
