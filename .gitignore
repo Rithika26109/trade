@@ -9,6 +9,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+.pytest_cache/
 env/
 venv/
 .venv/
@@ -33,6 +34,9 @@ logs/journal/weekly/*
 !logs/journal/weekly/*.md
 !logs/journal/weekly/.gitkeep
 *.log
+
+# Claude Code worktrees
+.claude/worktrees/
 
 # IDE
 .vscode/

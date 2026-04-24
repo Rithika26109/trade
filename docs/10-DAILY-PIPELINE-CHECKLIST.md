@@ -1,53 +1,31 @@
 # Trading Bot — Daily Pipeline Checklist
 
-All routines run locally via cron on the Mac. This doc covers how to verify each step.
+All routines run locally via **launchd** (`~/Library/LaunchAgents/com.trade.*.plist`).
+Unlike cron, launchd catches up missed jobs when the Mac wakes from sleep.
 
 ---
 
 ## Full Schedule (Weekdays)
 
-| Time (IST) | What | Cron | Log |
-|------------|------|------|-----|
-| 06:25 | Mac wakes | pmset | — |
-| 06:30 | Kite token refresh | `30 6 * * 1-5` | `cron_token.log` |
-| 08:03 | /pre-market research | `3 8 * * 1-5` | `cron_premarket.log` |
-| 09:05 | Bot launch (paper) | `5 9 * * 1-5` | `cron_launch.log` |
-| 09:15 | Healthcheck | `15 9 * * 1-5` | `cron_healthcheck.log` |
-| 09:22 | /market-open review | `22 9 * * 1-5` | `cron_market_open.log` |
-| 12:03 | /midday check-in | `3 12 * * 1-5` | `cron_midday.log` |
+| Time (IST) | What | launchd agent | Log |
+|------------|------|---------------|-----|
+| 07:50 | Kite token refresh | `com.trade.token-refresh` | `cron_token.log` |
+| 08:03 | /pre-market research | `com.trade.claude-premarket` | `cron_premarket.log` |
+| 09:05 | Bot launch (paper) | `com.trade.bot-launch` | `cron_launch.log` |
+| 09:15 | Healthcheck | `com.trade.bot-healthcheck` | `cron_healthcheck.log` |
+| 09:22 | /market-open review | `com.trade.claude-market-open` | `cron_market_open.log` |
+| 12:03 | /midday check-in | `com.trade.claude-midday` | `cron_midday.log` |
 | 15:00 | Bot stops new trades | automatic | `bot-YYYY-MM-DD.log` |
 | 15:15 | Bot squares off | automatic | `bot-YYYY-MM-DD.log` |
-| 15:33 | /daily-summary | `33 15 * * 1-5` | `cron_daily_summary.log` |
-| 15:35 | EOD git commit | `35 15 * * 1-5` | `cron_eod.log` |
-| 16:07 | /weekly-review (Fri) | `7 16 * * 5` | `cron_weekly_review.log` |
+| 15:33 | /daily-summary | `com.trade.claude-daily-summary` | `cron_daily_summary.log` |
+| 15:35 | EOD git commit | `com.trade.eod-commit` | `cron_eod.log` |
+| 16:07 | /weekly-review (Fri) | `com.trade.claude-weekly-review` | `cron_weekly_review.log` |
 
 ---
 
 ## Step-by-Step Verification
 
-### 1. Mac Auto-Wake (06:25)
-
-**Check:**
-```bash
-sudo pmset -g sched
-```
-
-**Expected:**
-```
-Repeating power events:
-  wakepoweron at 6:25AM weekdays
-```
-
-**If missing:**
-```bash
-sudo pmset repeat wakeorpoweron MTWRF 06:25:00
-```
-
-**Requirement:** Mac must be plugged in. Lid open or external display connected.
-
----
-
-### 2. Kite Token Refresh (06:30)
+### 1. Kite Token Refresh (07:50)
 
 **Test manually:**
 ```bash
@@ -255,8 +233,7 @@ tail -100 logs/cron_weekly_review.log
 
 **All-in-one setup verify:**
 ```bash
-crontab -l                                    # All cron jobs
-sudo pmset -g sched                           # Mac wake schedule
+launchctl list | grep com.trade               # All launchd agents loaded
 /opt/homebrew/bin/claude -p "say hello" --model sonnet  # Claude CLI logged in
 scripts/kite.sh profile                       # Kite auth working
 python3 scripts/gemini_research.py macro      # Gemini API working
@@ -280,7 +257,7 @@ tail -20 logs/bot-$(date +%F).log
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| No Telegram at 6:30 | Mac didn't wake | Check pmset, keep plugged in + lid open |
+| No token refresh log | Mac asleep, launchd catches up on wake | Open lid before 07:50 or let launchd retry |
 | `Enter Zerodha password:` in token log | KITE_PASSWORD not in .env | Add to `config/.env` |
 | `Not logged in` in premarket log | Claude CLI not authed | Run `claude login` (one-time) |
 | `GEMINI_API_KEY not set` | Missing from .env | Add to `config/.env` |
@@ -295,15 +272,24 @@ tail -20 logs/bot-$(date +%F).log
 
 ---
 
-## Crontab Environment
+## launchd Management
 
+```bash
+# List all trading agents
+launchctl list | grep com.trade
+
+# Manually trigger an agent
+launchctl start com.trade.token-refresh
+
+# Reload after editing a plist
+launchctl unload ~/Library/LaunchAgents/com.trade.token-refresh.plist
+launchctl load   ~/Library/LaunchAgents/com.trade.token-refresh.plist
+
+# Check last exit status
+launchctl list com.trade.token-refresh | grep LastExitStatus
 ```
-SHELL=/bin/zsh
-PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
-REPO=/Users/rithika-18920/Documents/aiaiai/serious/trade
-VENV=/Users/rithika-18920/Documents/aiaiai/serious/trade/.venv/bin/python3
-LOG=/Users/rithika-18920/Documents/aiaiai/serious/trade/logs
-```
+
+All plists live in `~/Library/LaunchAgents/com.trade.*.plist`.
 
 ## Cloud vs Local — Two Automation Layers
 
@@ -311,17 +297,17 @@ This project has two separate automation layers, kept in different directories:
 
 ### Local Layer (`.claude/commands/`) — ACTIVE NOW
 
-Runs on the Mac via cron + `claude -p "/command"`. Uses `config/.env` for secrets, `scripts/kite.sh` for Kite API, local Python scripts for Gemini research. Interactive — the user can invoke these manually too.
+Runs on the Mac via launchd + `claude -p "/command"`. Uses `config/.env` for secrets, `scripts/kite.sh` for Kite API, local Python scripts for Gemini research. Interactive — the user can invoke these manually too.
 
-| Command | Cron | Purpose |
-|---------|------|---------|
+| Command | Schedule | Purpose |
+|---------|----------|---------|
 | `/pre-market` | 08:03 | Morning research + watchlist |
 | `/market-open` | 09:22 | Opening bell review |
 | `/midday` | 12:03 | Mid-session check-in |
 | `/daily-summary` | 15:33 | End-of-day P&L + lessons |
 | `/weekly-review` | Fri 16:07 | Weekly performance recap |
 
-Plus non-Claude scripts: `refresh_kite_token.py` (06:30), `run_bot.sh` (09:05), `healthcheck.sh` (09:15), `eod_commit.py` (15:35).
+Plus non-Claude scripts: `refresh_kite_token.py` (07:50), `run_bot.sh` (09:05), `healthcheck.sh` (09:15), `eod_commit.py` (15:35).
 
 ### Cloud Layer (`.claude/routines/`) — READY, NOT ACTIVE
 
@@ -345,7 +331,7 @@ Designed for Claude cloud triggers (RemoteTrigger API). Each routine runs in a f
 | Telegram | `scripts/kite.sh telegram` | Direct `curl` to Telegram API |
 | Gemini | `python3 scripts/gemini_research.py` | Same script (reads env vars) |
 | Git | No push | Commits + pushes |
-| Execution | `claude -p "/command"` via cron | RemoteTrigger API (cloud) |
+| Execution | `claude -p "/command"` via launchd | RemoteTrigger API (cloud) |
 
 ---
 
@@ -367,13 +353,13 @@ When the Claude GitHub App becomes available, follow these steps to enable cloud
    - `eod-review` → 16:30 IST (11:00 UTC) weekdays → `.claude/routines/eod_review.md`
    - `weekly-meta` → 10:00 IST (04:30 UTC) Saturday → `.claude/routines/weekly_meta.md`
 
-4. **Keep local cron running** — cloud and local are complementary, not replacements:
+4. **Keep local launchd running** — cloud and local are complementary, not replacements:
    - Cloud `premarket-plan` (07:30) generates the plan → local `/pre-market` (08:03) reviews it
    - Cloud `healthcheck` (09:20) verifies bot → local `healthcheck.sh` (09:15) also verifies
    - Cloud `eod-review` (16:30) does deep grading → local `/daily-summary` (15:33) does user briefing
 
 5. **Optional: remove local duplicates** — once cloud is stable, you can remove:
-   - Local `healthcheck.sh` cron (cloud healthcheck replaces it)
+   - Local `healthcheck.sh` agent (cloud healthcheck replaces it)
    - That's it — the other local commands serve a different purpose than the cloud routines
 
 ---
@@ -382,8 +368,8 @@ When the Claude GitHub App becomes available, follow these steps to enable cloud
 
 | File | Purpose |
 |------|---------|
-| `.claude/commands/*.md` | Slash command prompts (run by cron via claude CLI) |
-| `.claude/routines/*.md` | Routine prompts (cloud format, run locally for now) |
+| `.claude/commands/*.md` | Slash command prompts (run by launchd via claude CLI) |
+| `.claude/routines/*.md` | Routine prompts (cloud format, ready for RemoteTrigger) |
 | `scripts/refresh_kite_token.py` | Daily Kite login + token push |
 | `scripts/run_bot.sh` | Bot launcher (heartbeat + caffeinate + main.py) |
 | `scripts/healthcheck.sh` | Post-launch bot verification |

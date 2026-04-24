@@ -241,7 +241,92 @@ print(infy["instrument_token"])  # Use this token for subscriptions
 | MIS orders per day | 2,000 |
 | Cover Orders per day | 2,000 |
 
-**Important:** Exceeding rate limits will get your requests temporarily blocked.
+**Important:** Exceeding rate limits returns HTTP 429 — wait 1 second and retry with backoff.
+
+---
+
+## GTT Orders (Good Till Triggered)
+
+GTT orders sit on Zerodha's servers and trigger when LTP hits your price. Useful for persistent stop-losses or targets across days.
+
+```python
+# Single trigger — sell if INFY drops to 1400
+gtt_id = kite.place_gtt(
+    trigger_type=kite.GTT_TYPE_SINGLE,
+    tradingsymbol="INFY", exchange="NSE",
+    trigger_values=[1400.0], last_price=1452.0,
+    orders=[{"transaction_type": "SELL", "quantity": 10,
+             "price": 1400.0, "order_type": "LIMIT", "product": "CNC"}]
+)
+
+# OCO (One-Cancels-Other) — stop-loss at 1400, target at 1600
+gtt_id = kite.place_gtt(
+    trigger_type=kite.GTT_TYPE_OCO,
+    tradingsymbol="INFY", exchange="NSE",
+    trigger_values=[1400.0, 1600.0], last_price=1452.0,
+    orders=[
+        {"transaction_type": "SELL", "quantity": 10, "price": 1400.0,
+         "order_type": "LIMIT", "product": "CNC"},
+        {"transaction_type": "SELL", "quantity": 10, "price": 1600.0,
+         "order_type": "LIMIT", "product": "CNC"},
+    ]
+)
+
+kite.get_gtts()           # list active GTTs
+kite.delete_gtt(gtt_id)   # cancel
+```
+
+**Limitations:** LIMIT orders only, triggers on LTP only, MIS GTTs auto-cancel at EOD.
+
+---
+
+## Market Protection (April 2026)
+
+MARKET and SL-M orders now require a `market_protection` parameter — the max % the fill price can deviate from LTP. Minimum 1%.
+
+```python
+kite.place_order(
+    ...,
+    order_type=kite.ORDER_TYPE_MARKET,
+    market_protection=3  # allow up to 3% slippage
+)
+```
+
+---
+
+## Common Pitfalls
+
+1. **instrument_token vs tradingsymbol** — not interchangeable. WebSocket/historical use tokens (int), orders/quotes use symbols (str).
+2. **Token expires at 6 AM daily** — no exceptions. Logging into Kite web/app may invalidate API session.
+3. **First candle (9:15) is garbage** — opening auction distorts OHLC. Skip first 15 min.
+4. **request_token expires in ~2 min** — exchange for access_token immediately.
+5. **quote() silently drops invalid instruments** — always check `if symbol in response`.
+6. **Current candle is incomplete** — during market hours, the latest candle's OHLCV is still forming.
+7. **MIS auto-square-off at 3:15-3:25 PM** — exit before Zerodha forces it at worse prices.
+8. **No paper trading in the API** — `place_order()` is always real. Simulate in your bot code.
+9. **F&O tokens get recycled after expiry** — re-download instruments list daily.
+
+---
+
+## HTTP Error Codes
+
+| Code | Meaning | Action |
+|------|---------|--------|
+| 200 | Success | — |
+| 400 | Bad request | Check parameters |
+| 403 | Forbidden | Token expired — re-login |
+| 429 | Rate limited | Wait 1s, retry with backoff |
+| 500 | Server error | Retry with backoff |
+| 502/503 | Gateway error | Zerodha issue — wait and retry |
+
+```python
+from kiteconnect import exceptions
+# exceptions.TokenException       — token expired
+# exceptions.OrderException       — order placement failed
+# exceptions.InputException       — bad parameters
+# exceptions.DataException        — data fetch issue
+# exceptions.NetworkException     — connection/timeout
+```
 
 ---
 
