@@ -19,12 +19,20 @@ data/historical/*.json
 data/research/
 data/trades.db
 
-# Logs
-logs/
-*.log
-
-# …but keep the bot heartbeat (read by the cloud healthcheck routine)
+# Logs — ignore noisy files but keep artifacts the cloud routines need
+logs/*
+!logs/.gitkeep
 !logs/bot_heartbeat.json
+!logs/journal/
+logs/journal/*
+!logs/journal/*.md
+!logs/journal/*.events.jsonl
+!logs/journal/.gitkeep
+!logs/journal/weekly/
+logs/journal/weekly/*
+!logs/journal/weekly/*.md
+!logs/journal/weekly/.gitkeep
+*.log
 
 # IDE
 .vscode/

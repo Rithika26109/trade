@@ -67,87 +67,125 @@ grep -q "^config/.access_token$" .gitignore || echo "config/.access_token" >> .g
 
 ---
 
-## One-time: create a GitHub App for Claude
+## One-time: connect GitHub to Claude Code
 
-1. Go to https://code.claude.com → **Settings → GitHub**.
-2. Install the Claude Code GitHub App on your `trade` repo.
-3. Under **Branch permissions**, enable **"Allow unrestricted pushes to `main`"**
-   (routines will commit `config/daily_plan.json` and `logs/journal/` directly).
-4. Copy the repo URL — you'll paste it into each routine's config.
+Routines need two distinct things from GitHub:
+1. **Clone + push access** (required for all routines — scheduled or event).
+2. **Webhook delivery** (only required for GitHub-event triggers — we don't use these).
+
+Since all 4 routines below use **scheduled triggers**, you only need #1. The
+Claude GitHub App (#2) is NOT required for this setup.
+
+### Step 1 — grant clone/push access (`/web-setup`)
+
+In any Claude Code CLI session, run:
+```
+/web-setup
+```
+Follow the OAuth prompt. This connects your GitHub account to cloud Claude
+Code sessions so routines can clone the repo and push branches as you.
+
+### Step 2 — allow non-`claude/` branch pushes (per routine)
+
+By default, cloud sessions can only push to branches prefixed `claude/`.
+Our routines push to `plan/`, `status/`, `eod/`, `meta/` — so you must
+toggle **"Allow unrestricted branch pushes"** on the `trade` repo for each
+routine:
+
+1. Go to https://claude.ai/code/routines
+2. Click each routine → pencil (edit) icon
+3. Under **Repositories**, enable **"Allow unrestricted branch pushes"** for
+   `Rithika26109/trade`
+4. Save
+
+Do this for all 4 routines.
+
+### (Optional) Step 3 — GitHub App
+
+Only install if you later add a GitHub-event trigger (e.g. "review every new
+PR"). The install prompt appears inline when you add that trigger type — no
+need to hunt for it in `claude.ai/settings`.
 
 ---
 
-## One-time: store secrets in the GitHub repo
+## One-time: set secrets on the cloud environment
 
-Routines read from repo secrets, not a local `.env`. From your machine:
+Routines read env vars from the **cloud environment** attached to them
+(e.g. `trade_bull`), **not** from GitHub repo secrets. Set them at
+https://claude.ai/code/environments → your env → **Environment variables**.
 
-```bash
-gh secret set GEMINI_API_KEY   --repo <you>/trade --body "$GEMINI_API_KEY"
-gh secret set KITE_API_KEY     --repo <you>/trade --body "$KITE_API_KEY"
-# KITE_ACCESS_TOKEN is rotated daily by scripts/refresh_kite_token.py
-# — don't set it manually.
-```
+**Required** (for all routines):
+- `GEMINI_API_KEY` — premarket research via Gemini
+- `KITE_API_KEY`, `KITE_API_SECRET` — Kite Connect client
+- `KITE_USER_ID`, `KITE_PASSWORD`, `KITE_TOTP_SECRET` — auto-TOTP login
 
-The routines only need `KITE_API_KEY` + `KITE_ACCESS_TOKEN` (not the full
-TOTP stack), because `scripts/premarket_context.py` detects a pre-supplied
-token and skips the TOTP flow.
+**Required** (for `bot-healthcheck` only):
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
 
----
+**Do NOT set** `KITE_ACCESS_TOKEN` on the cloud environment. Each routine
+does a fresh TOTP login at start via `src/auth/login.py::ZerodhaAuth`, so
+a stale value in env would be actively harmful (the code falls through to
+TOTP login only when the env var is absent).
 
-## One-time: set up the local kite-token rotator (06:30 IST daily)
+### No cloud token-refresh routine needed
 
-The morning routine fires at 07:30 IST, but Kite access tokens expire at
-06:00 IST and need an interactive TOTP re-login. `scripts/refresh_kite_token.py`
-handles both: it re-logs-in locally (your machine has the TOTP secret) and
-pushes the new token into the repo as `KITE_ACCESS_TOKEN` via `gh`.
-
-Test it:
-```bash
-cd /Users/rithika-18920/Documents/aiaiai/serious/trade
-source .venv/bin/activate
-python scripts/refresh_kite_token.py --repo <you>/trade --dry-run
-```
-
-Install a local cron (`crontab -e`):
-```
-# Refresh Kite access token at 06:30 IST (= 01:00 UTC) on weekdays
-0 1 * * 1-5  cd /Users/rithika-18920/Documents/aiaiai/serious/trade && .venv/bin/python scripts/refresh_kite_token.py --repo <you>/trade >> logs/token-refresh.log 2>&1
-```
-
-On macOS, cron works but `launchd` is the native choice. A simple cron entry
-above is fine for a personal bot.
+Earlier drafts of this doc described a separate 06:30 token-refresh
+routine. That's no longer needed because each routine logs in fresh via
+TOTP on startup. The local `scripts/refresh_kite_token.py` + 06:30 cron is
+still useful for the **local bot** (which re-uses a cached token file
+across the day), but irrelevant to cloud routines.
 
 ---
 
-## One-time: create the three routines
+## One-time: create the four routines
 
-At https://code.claude.com → **Routines → New**:
+Create at https://claude.ai/code/routines → **New routine**, or via the CLI
+(`/schedule` in any Claude Code session), or via the `schedule` skill which
+calls the `RemoteTrigger` API directly.
+
+Cron expressions are in **UTC**. IST = UTC + 5:30.
 
 ### 1. `premarket-plan`
-- **Schedule:** every weekday at `02:00 UTC` (= 07:30 IST).
-- **Repo:** `<you>/trade`, branch `main`.
-- **Prompt:** paste contents of [`.claude/routines/premarket.md`](../.claude/routines/premarket.md).
-- **Secrets:** `GEMINI_API_KEY`, `KITE_API_KEY`, `KITE_ACCESS_TOKEN`.
-- **Working dir:** repo root.
+- **Schedule:** `0 2 * * 1-5` (02:00 UTC = 07:30 IST, weekdays).
+- **Repo:** `Rithika26109/trade`, default branch `main`, unrestricted pushes ON.
+- **Model:** `claude-opus-4-7` (research-heavy).
+- **Prompt:** thin bootstrap pointing at [`.claude/routines/premarket.md`](../.claude/routines/premarket.md) — the routine reads it and follows instructions.
+- **Secrets required on the cloud environment:** `GEMINI_API_KEY`, `KITE_API_KEY`, `KITE_API_SECRET`, `KITE_USER_ID`, `KITE_PASSWORD`, `KITE_TOTP_SECRET` (TOTP auto-login).
 
-### 2. `eod-review`
-- **Schedule:** weekdays at `11:00 UTC` (= 16:30 IST).
-- **Prompt:** paste [`.claude/routines/eod_review.md`](../.claude/routines/eod_review.md).
-- **Secrets:** `GEMINI_API_KEY`. (No Kite needed — this routine only reads journals.)
-
-### 3. `weekly-meta`
-- **Schedule:** Saturday at `04:30 UTC` (= 10:00 IST).
-- **Prompt:** paste [`.claude/routines/weekly_meta.md`](../.claude/routines/weekly_meta.md).
-- **Secrets:** none.
-
-### 4. `bot-healthcheck`
-- **Schedule:** weekdays at `03:50 UTC` (= 09:20 IST).
-- **Prompt:** paste [`routines/healthcheck.md`](../routines/healthcheck.md).
+### 2. `bot-healthcheck`
+- **Schedule:** `50 3 * * 1-5` (03:50 UTC = 09:20 IST, weekdays).
+- **Model:** `claude-sonnet-4-6`.
+- **Prompt:** bootstrap pointing at [`.claude/routines/healthcheck.md`](../.claude/routines/healthcheck.md).
 - **Secrets:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
-- **Working dir:** repo root.
 - Alerts via Telegram only on failure; silent on PASS.
 
-Each routine gets its own job history; watch the first couple of runs.
+### 3. `eod-review`
+- **Schedule:** `0 11 * * 1-5` (11:00 UTC = 16:30 IST, weekdays).
+- **Model:** `claude-sonnet-4-6`.
+- **Prompt:** bootstrap pointing at [`.claude/routines/eod_review.md`](../.claude/routines/eod_review.md).
+- **Secrets:** none strictly required (reads journals only); `GEMINI_API_KEY` optional.
+
+### 4. `weekly-meta`
+- **Schedule:** `30 4 * * 6` (04:30 UTC Sat = 10:00 IST Sat).
+- **Model:** `claude-opus-4-7`.
+- **Prompt:** bootstrap pointing at [`.claude/routines/weekly_meta.md`](../.claude/routines/weekly_meta.md).
+- **Secrets:** none.
+
+### About secrets on the cloud environment
+
+Unlike the old GitHub-Actions-style flow, routines read secrets from the
+**cloud environment** attached to the routine (not from `gh secret`).
+Configure them at https://claude.ai/code/environments → your env
+(e.g. `trade_bull`) → **Environment variables**. The routine prompts
+read them via `os.environ.get()` or `$VAR`.
+
+The existing `gh secret set` values on the repo are still useful for any
+GitHub-Actions workflows and for the local bot's token-refresh flow —
+keep them. The cloud environment values are a separate mirror consumed
+only by routines.
+
+Each routine has its own run history at https://claude.ai/code/routines —
+watch the first couple of runs.
 
 ---
 
@@ -240,9 +278,17 @@ settings caps — exactly the old behaviour.
 ## First-day checklist
 
 - [ ] Repo pushed to GitHub with `config/.env` gitignored.
-- [ ] Claude Code GitHub App installed on the repo, `main` push allowed.
-- [ ] `GEMINI_API_KEY`, `KITE_API_KEY` stored as repo secrets.
-- [ ] `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` stored as repo secrets
+- [ ] `/web-setup` run once from Claude Code CLI (grants clone/push to cloud).
+- [ ] **"Allow unrestricted branch pushes"** toggled ON for `Rithika26109/trade`
+      on EACH of the 4 routines (required — they push to `plan/`, `status/`,
+      `eod/`, `meta/` branches, not `claude/`-prefixed).
+- [ ] `GEMINI_API_KEY`, `KITE_API_KEY`, `KITE_API_SECRET`, `KITE_USER_ID`,
+      `KITE_PASSWORD`, `KITE_TOTP_SECRET` set on the cloud **environment**
+      (claude.ai/code/environments) — NOT just repo secrets. Routines do
+      fresh TOTP login on startup.
+- [ ] `KITE_ACCESS_TOKEN` is NOT set on the cloud env (any stale value would
+      bypass fresh login — keep it unset).
+- [ ] `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` set on the cloud environment
       (used by `bot-healthcheck`).
 - [ ] `scripts/refresh_kite_token.py --dry-run` succeeded locally.
 - [ ] Local cron installed for 06:30 IST token rotation.
