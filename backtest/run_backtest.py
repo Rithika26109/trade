@@ -295,12 +295,33 @@ class VWAPSupertrendBacktest(Strategy):
             self.sell(sl=stop, tp=target)
 
 
+def zerodha_commission_with_slippage(size, price):
+    """Zerodha realistic costs + slippage for backtests."""
+    base_cost = zerodha_commission(size, price)
+    slippage_cost = abs(size) * price * (settings.BACKTEST_SLIPPAGE_PCT / 100)
+    return base_cost + slippage_cost
+
+
 def load_sample_data(symbol: str = "INFY", days: int = 60, allow_synthetic: bool = False) -> pd.DataFrame:
     """
-    Load historical data. Tries Zerodha first; synthetic fallback is
-    opt-in via `allow_synthetic` to prevent silently tuning strategies
-    against random walks (which produce meaningless P&L).
+    Load historical data. Checks local CSV cache first, then tries
+    Zerodha API; synthetic fallback is opt-in via `allow_synthetic`.
     """
+    # Check local CSV cache first
+    csv_path = settings.HISTORICAL_DATA_DIR / f"{symbol}_5min.csv"
+    if csv_path.exists():
+        try:
+            df = pd.read_csv(csv_path, parse_dates=["Date"])
+            df = df.set_index("Date")
+            # Filter to requested date range from end of data
+            if days and days < 9999:
+                cutoff = df.index.max() - timedelta(days=days)
+                df = df[df.index >= cutoff]
+            print(f"Loaded {len(df)} candles from cache for {symbol}")
+            return df
+        except Exception as e:
+            print(f"Cache read failed for {symbol}: {e}")
+
     try:
         from src.auth.login import ZerodhaAuth
         from src.data.market_data import MarketData

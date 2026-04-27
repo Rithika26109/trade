@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from queue import Queue
+import random
 
 from kiteconnect import KiteConnect
 
@@ -57,6 +58,9 @@ class Order:
     # price-stop in PositionManager MUST be suppressed to avoid double-exit.
     sl_order_id: str | None = None
     tick_size: float = 0.05
+    requested_quantity: int = 0   # original qty before partial fill simulation
+    rejection_reason: str = ""    # why paper order was rejected (simulation)
+    entry_atr: float = 0.0       # ATR at entry time (for ATR-based trailing stop)
 
 
 class OrderManager:
@@ -68,6 +72,8 @@ class OrderManager:
         self.is_paper = settings.TRADING_MODE == "paper"
         self._paper_order_counter = 0
         self.orders: list[Order] = []
+        # Paper-mode capital callback for rejection simulation (wired by main.py)
+        self._get_available_capital: callable | None = None
         # SEBI compliance: cap order rate to stay under the 10/s limit.
         self._order_rate_limiter = RateLimiter(
             max_calls=getattr(settings, "ORDER_RATE_LIMIT_PER_SEC", 8),
@@ -143,24 +149,72 @@ class OrderManager:
         else:
             return self._place_live_order(signal, exchange, tick)
 
-    def _place_paper_order(self, signal: TradeSignal, exchange: str, tick: float = 0.05) -> Order:
-        """Simulate an order with realistic slippage (paper trading)."""
+    def _place_paper_order(self, signal: TradeSignal, exchange: str, tick: float = 0.05) -> Order | None:
+        """Simulate an order with realistic slippage, optional rejections and partial fills."""
         self._paper_order_counter += 1
         order_id = f"PAPER-{self._paper_order_counter:06d}"
+        action = "BUY" if signal.signal == Signal.BUY else "SELL"
 
-        # Simulate slippage: buys fill slightly higher, sells slightly lower
-        slippage = signal.price * (settings.PAPER_SLIPPAGE_PCT / 100)
+        # ── Step 1: Rejection simulation ─────────────────────────────────
+        if getattr(settings, "PAPER_SIMULATE_REJECTIONS", False):
+            reason = self._paper_check_rejection(signal)
+            if reason:
+                order = Order(
+                    order_id=order_id, symbol=signal.symbol, exchange=exchange,
+                    signal=signal.signal, quantity=signal.quantity, price=signal.price,
+                    stop_loss=signal.stop_loss, target=signal.target, order_type="MARKET",
+                    status=OrderStatus.REJECTED, reason=signal.reason,
+                    strategy=signal.strategy, is_paper=True,
+                    rejection_reason=reason,
+                )
+                self.orders.append(order)
+                logger.warning(f"[PAPER] {action} {signal.symbol} REJECTED: {reason}")
+                audit("paper_order_rejected", order_id=order_id, symbol=signal.symbol,
+                      side=action, qty=signal.quantity, price=signal.price,
+                      reason=reason, paper=True)
+                return None
+
+        # ── Step 2: Slippage calculation ─────────────────────────────────
+        if getattr(settings, "PAPER_DYNAMIC_SLIPPAGE", False):
+            slippage_pct = self._paper_calc_dynamic_slippage(signal)
+        else:
+            slippage_pct = settings.PAPER_SLIPPAGE_PCT
+
+        slippage = signal.price * (slippage_pct / 100)
         if signal.signal == Signal.BUY:
             executed_price = signal.price + slippage
         else:
             executed_price = signal.price - slippage
 
+        # ── Step 3: Partial fill simulation ──────────────────────────────
+        fill_qty = signal.quantity
+        if getattr(settings, "PAPER_SIMULATE_PARTIAL_FILLS", False):
+            fill_qty = self._paper_calc_fill_quantity(signal)
+            if fill_qty <= 0:
+                order = Order(
+                    order_id=order_id, symbol=signal.symbol, exchange=exchange,
+                    signal=signal.signal, quantity=signal.quantity, price=signal.price,
+                    stop_loss=signal.stop_loss, target=signal.target, order_type="MARKET",
+                    status=OrderStatus.REJECTED, reason=signal.reason,
+                    strategy=signal.strategy, is_paper=True,
+                    rejection_reason="Partial fill below minimum threshold",
+                )
+                self.orders.append(order)
+                logger.warning(
+                    f"[PAPER] {action} {signal.symbol} REJECTED: fill below minimum threshold"
+                )
+                audit("paper_order_rejected", order_id=order_id, symbol=signal.symbol,
+                      side=action, qty=signal.quantity, price=signal.price,
+                      reason="partial_fill_below_min", paper=True)
+                return None
+
+        # ── Step 4: Create executed order ────────────────────────────────
         order = Order(
             order_id=order_id,
             symbol=signal.symbol,
             exchange=exchange,
             signal=signal.signal,
-            quantity=signal.quantity,
+            quantity=fill_qty,
             price=signal.price,
             stop_loss=signal.stop_loss,
             target=signal.target,
@@ -171,16 +225,22 @@ class OrderManager:
             reason=signal.reason,
             strategy=signal.strategy,
             is_paper=True,
+            requested_quantity=signal.quantity,
         )
 
         order.original_quantity = order.quantity
         order.tick_size = tick
+        order.entry_atr = getattr(signal, 'entry_atr', 0.0)
         self.orders.append(order)
 
-        action = "BUY" if signal.signal == Signal.BUY else "SELL"
+        partial_note = ""
+        if fill_qty != signal.quantity:
+            partial_note = f" (partial: {fill_qty}/{signal.quantity})"
+
         logger.info(
             f"[PAPER] {action} {signal.symbol} | "
-            f"Qty: {signal.quantity} | Price: {signal.price:.2f} | "
+            f"Qty: {fill_qty}{partial_note} | Price: {signal.price:.2f} | "
+            f"Exec: {executed_price:.2f} (slip {slippage_pct:.3f}%) | "
             f"SL: {signal.stop_loss:.2f} | Target: {signal.target:.2f} | "
             f"Reason: {signal.reason}"
         )
@@ -189,9 +249,11 @@ class OrderManager:
             order_id=order_id,
             symbol=signal.symbol,
             side=action,
-            qty=signal.quantity,
+            qty=fill_qty,
+            requested_qty=signal.quantity,
             price=signal.price,
             executed_price=executed_price,
+            slippage_pct=slippage_pct,
             sl=signal.stop_loss,
             target=signal.target,
             strategy=signal.strategy,
@@ -199,6 +261,128 @@ class OrderManager:
             paper=True,
         )
         return order
+
+    # ── Paper simulation helpers ─────────────────────────────────────────
+
+    def _paper_check_rejection(self, signal: TradeSignal) -> str | None:
+        """Check if a paper order should be simulated as rejected.
+        Returns a rejection reason string, or None to proceed."""
+
+        # Margin check
+        if getattr(settings, "PAPER_MARGIN_CHECK", True) and self._get_available_capital:
+            notional = signal.quantity * signal.price
+            capital = self._get_available_capital()
+            if notional > capital:
+                return (
+                    f"Insufficient margin: notional ₹{notional:,.0f} > "
+                    f"available ₹{capital:,.0f}"
+                )
+
+        # Circuit limit proximity
+        if self.market_data:
+            try:
+                band = self.market_data.get_circuit_limits(signal.symbol)
+                if band:
+                    lower, upper = band.get("lower", 0), band.get("upper", 0)
+                    if upper and signal.signal == Signal.BUY:
+                        if signal.price >= upper * 0.995:
+                            return f"Near upper circuit limit ({upper:.2f})"
+                    if lower and signal.signal == Signal.SELL:
+                        if signal.price <= lower * 1.005:
+                            return f"Near lower circuit limit ({lower:.2f})"
+            except Exception:
+                pass  # market data unavailable — skip check
+
+        # Random exchange rejection
+        if random.random() * 100 < getattr(settings, "PAPER_RANDOM_REJECTION_PCT", 1.5):
+            return "Simulated exchange rejection"
+
+        return None
+
+    def _paper_calc_dynamic_slippage(self, signal: TradeSignal) -> float:
+        """Calculate dynamic slippage % based on volatility, time, and order size.
+        Falls back to base slippage if market data is unavailable."""
+        base = getattr(settings, "PAPER_BASE_SLIPPAGE_PCT", 0.03)
+        vol_mult = 1.0
+        time_mult = 1.0
+        size_mult = 1.0
+
+        # Volatility multiplier (ATR-based)
+        if getattr(settings, "PAPER_SLIPPAGE_VOLATILITY_MULT", True) and self.market_data:
+            try:
+                df = self.market_data.get_historical_data(
+                    signal.symbol, interval="day", days=5
+                )
+                if df is not None and len(df) >= 3:
+                    import pandas_ta as ta
+                    atr = ta.atr(df["high"], df["low"], df["close"], length=min(5, len(df) - 1))
+                    if atr is not None and not atr.empty:
+                        atr_pct = (atr.iloc[-1] / df["close"].iloc[-1]) * 100
+                        vol_mult = max(1.0, min(3.0, atr_pct / 1.5))
+            except Exception:
+                pass
+
+        # Time-of-day multiplier (wider spreads at open/close)
+        if getattr(settings, "PAPER_SLIPPAGE_TIME_MULT", True):
+            try:
+                now = settings.now_ist()
+                minutes = now.hour * 60 + now.minute
+                if 555 <= minutes <= 585:      # 9:15–9:45 opening
+                    time_mult = 2.0
+                elif 900 <= minutes <= 930:    # 15:00–15:30 closing
+                    time_mult = 1.5
+            except Exception:
+                pass
+
+        # Size impact multiplier
+        if getattr(settings, "PAPER_SLIPPAGE_SIZE_MULT", True) and self.market_data:
+            try:
+                df = self.market_data.get_historical_data(
+                    signal.symbol, interval="day", days=5
+                )
+                if df is not None and len(df) >= 2:
+                    avg_vol = df["volume"].mean()
+                    if avg_vol > 0:
+                        order_pct = (signal.quantity / avg_vol) * 100
+                        if order_pct > 1.0:
+                            size_mult = min(2.0, 1.0 + (order_pct - 1.0) * 0.5)
+            except Exception:
+                pass
+
+        final = base * vol_mult * time_mult * size_mult
+        cap = getattr(settings, "PAPER_SLIPPAGE_MAX_PCT", 0.50)
+        return min(final, cap)
+
+    def _paper_calc_fill_quantity(self, signal: TradeSignal) -> int:
+        """Simulate partial fills. Returns filled quantity (0 = reject)."""
+        prob = getattr(settings, "PAPER_PARTIAL_FILL_PROB", 0.15)
+        if random.random() > prob:
+            return signal.quantity  # full fill (most of the time)
+
+        min_pct = getattr(settings, "PAPER_PARTIAL_FILL_MIN_PCT", 60)
+        max_pct = getattr(settings, "PAPER_PARTIAL_FILL_MAX_PCT", 90)
+        fill_pct = random.uniform(min_pct, max_pct)
+
+        # Volume-based penalty for large orders
+        if getattr(settings, "PAPER_PARTIAL_FILL_VOLUME_FACTOR", True) and self.market_data:
+            try:
+                df = self.market_data.get_historical_data(
+                    signal.symbol, interval="day", days=5
+                )
+                if df is not None and len(df) >= 2:
+                    avg_vol = df["volume"].mean()
+                    if avg_vol > 0:
+                        order_pct = signal.quantity / avg_vol
+                        if order_pct > 0.01:
+                            penalty = (order_pct - 0.01) * 1000
+                            fill_pct = max(0, fill_pct - penalty)
+            except Exception:
+                pass
+
+        if fill_pct < min_pct:
+            return 0  # below threshold → reject
+
+        return max(1, int(signal.quantity * fill_pct / 100))
 
     def _place_live_order(self, signal: TradeSignal, exchange: str, tick: float = 0.05) -> Order | None:
         """Place a real order on Zerodha."""
@@ -266,6 +450,7 @@ class OrderManager:
 
             order.original_quantity = order.quantity
             order.tick_size = tick
+            order.entry_atr = getattr(signal, 'entry_atr', 0.0)
             self.orders.append(order)
 
             action = "BUY" if signal.signal == Signal.BUY else "SELL"

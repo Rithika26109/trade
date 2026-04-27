@@ -14,7 +14,9 @@ from config import settings
 from src.indicators.market_regime import MarketRegime
 from src.strategy.base import BaseStrategy, Signal, TradeSignal
 from src.strategy.confluence import calculate_confluence
+from src.strategy.mean_reversion import MeanReversionStrategy
 from src.strategy.orb import ORBStrategy
+from src.strategy.pairs import PairsTradingStrategy
 from src.strategy.rsi_ema import RSIEMAStrategy
 from src.strategy.vwap_supertrend import VWAPSupertrendStrategy
 from src.strategy.regime_tracker import RegimePerformanceTracker
@@ -29,6 +31,7 @@ class StrategyOrchestrator(BaseStrategy):
             ORBStrategy(),
             RSIEMAStrategy(),
             VWAPSupertrendStrategy(),
+            MeanReversionStrategy(),
         ]
         # Lazy: only build a tracker if enabled; can be injected for tests.
         self.tracker: RegimePerformanceTracker | None = tracker
@@ -50,6 +53,12 @@ class StrategyOrchestrator(BaseStrategy):
             if isinstance(s, ORBStrategy):
                 return s
         return None
+
+    def add_pairs_strategy(self, market_data) -> None:
+        """Inject pairs strategy after market_data is available."""
+        if getattr(settings, "ENABLE_PAIRS_TRADING", False):
+            self.strategies.append(PairsTradingStrategy(market_data=market_data))
+            logger.info("[MULTI] Pairs trading strategy enabled")
 
     def analyze(
         self,

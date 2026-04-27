@@ -31,6 +31,8 @@ class TradeSignal:
     strategy: str = ""  # Strategy name that generated this
     confluence_score: float = 0.0  # 0-100 confidence score
     confluence_details: dict = field(default_factory=dict)  # Component breakdown
+    rsi: float | None = None  # RSI at signal time (used by risk manager)
+    entry_atr: float = 0.0  # ATR at signal time (used for trailing stop)
 
     @property
     def risk_per_share(self) -> float:

@@ -38,6 +38,11 @@ def add_macd(
     slow = slow or settings.MACD_SLOW
     signal = signal or settings.MACD_SIGNAL
     macd = ta.macd(df["close"], fast=fast, slow=slow, signal=signal)
+    if macd is None or macd.empty:
+        df["macd"] = float("nan")
+        df["macd_histogram"] = float("nan")
+        df["macd_signal"] = float("nan")
+        return df
     df["macd"] = macd.iloc[:, 0]  # MACD line
     df["macd_histogram"] = macd.iloc[:, 1]  # Histogram
     df["macd_signal"] = macd.iloc[:, 2]  # Signal line
@@ -51,6 +56,12 @@ def add_bollinger_bands(
     period = period or settings.BOLLINGER_PERIOD
     std = std or settings.BOLLINGER_STD
     bbands = ta.bbands(df["close"], length=period, std=std)
+    if bbands is None or bbands.empty:
+        df["bb_lower"] = float("nan")
+        df["bb_middle"] = float("nan")
+        df["bb_upper"] = float("nan")
+        df["bb_bandwidth"] = float("nan")
+        return df
     df["bb_lower"] = bbands.iloc[:, 0]  # Lower band
     df["bb_middle"] = bbands.iloc[:, 1]  # Middle band (SMA)
     df["bb_upper"] = bbands.iloc[:, 2]  # Upper band
@@ -129,6 +140,10 @@ def add_supertrend(
     multiplier = multiplier or settings.SUPERTREND_MULTIPLIER
     st = ta.supertrend(df["high"], df["low"], df["close"],
                        length=period, multiplier=multiplier)
+    if st is None or st.empty:
+        df["supertrend"] = float("nan")
+        df["supertrend_direction"] = float("nan")
+        return df
     # pandas-ta returns: SUPERT_{period}_{mult}, SUPERTd_{period}_{mult},
     # SUPERTl_{period}_{mult}, SUPERTs_{period}_{mult}
     cols = st.columns.tolist()

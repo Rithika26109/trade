@@ -60,8 +60,9 @@ ORB_VOLUME_MULTIPLIER = 1.5  # Breakout volume must be >= 1.5x average
 
 # ── Catch-Up Scan ──
 # When the bot starts mid-session, look back this many 5-min candles
-# (6 candles = 30 minutes) to detect recent crossovers/breakouts/flips.
-CATCH_UP_CANDLES = 6
+# (2 candles = 10 minutes) to detect recent crossovers/breakouts/flips.
+# Was 6 (30 min) — chasing stale signals destroyed R:R.
+CATCH_UP_CANDLES = 2
 
 # ── Risk Management ──
 INITIAL_CAPITAL = 100000  # Starting capital in Rs (used for paper trading)
@@ -75,7 +76,7 @@ MAX_CONSECUTIVE_LOSSES = 3  # Pause after 3 consecutive losses
 PAUSE_AFTER_LOSSES_MINUTES = 30  # Pause duration after consecutive losses
 
 # ── Stop-Loss Settings ──
-STOP_LOSS_TYPE = "ATR"  # Options: "FIXED", "ATR", "TRAILING"
+STOP_LOSS_TYPE = "TRAILING"  # Options: "FIXED", "ATR", "TRAILING"
 FIXED_STOP_LOSS_PCT = 1.0  # 1% fixed stop-loss
 TRAILING_STOP_PCT = 0.5  # 0.5% trailing stop
 
@@ -123,6 +124,50 @@ ENABLE_TIME_SCALING = True
 
 # ── Paper Trading ──
 PAPER_SLIPPAGE_PCT = 0.05  # 0.05% slippage simulation for paper trades
+
+# ── Backtest Slippage ──
+BACKTEST_SLIPPAGE_PCT = 0.05  # 0.05% slippage per trade leg in backtests
+
+# ── Paper Trading: Realistic Simulation ──
+# All toggles default to False — existing paper behavior is unchanged unless opted in.
+
+# Order rejection simulation (margin, circuit, random exchange glitches)
+PAPER_SIMULATE_REJECTIONS = False
+PAPER_RANDOM_REJECTION_PCT = 1.5        # % chance of random exchange rejection
+PAPER_MARGIN_CHECK = True               # reject if notional > available capital
+
+# Partial fill simulation
+PAPER_SIMULATE_PARTIAL_FILLS = False
+PAPER_PARTIAL_FILL_PROB = 0.15          # 15% of orders get partial fills
+PAPER_PARTIAL_FILL_MIN_PCT = 60         # minimum fill %; below this → reject
+PAPER_PARTIAL_FILL_MAX_PCT = 90         # maximum partial fill %
+PAPER_PARTIAL_FILL_VOLUME_FACTOR = True # worse fills for large orders vs avg volume
+
+# Dynamic slippage (replaces fixed PAPER_SLIPPAGE_PCT when enabled)
+PAPER_DYNAMIC_SLIPPAGE = False
+PAPER_BASE_SLIPPAGE_PCT = 0.03          # base slippage for liquid NIFTY 50 stocks
+PAPER_SLIPPAGE_VOLATILITY_MULT = True   # scale by ATR%
+PAPER_SLIPPAGE_TIME_MULT = True         # wider spreads at open/close
+PAPER_SLIPPAGE_SIZE_MULT = True         # larger orders get more slippage
+PAPER_SLIPPAGE_MAX_PCT = 0.50           # hard cap on slippage %
+
+# ── Mean-Reversion Strategy ──
+MEAN_REV_ADX_MAX = 20                   # Only activate below this ADX (ranging market)
+MEAN_REV_RSI_OVERSOLD = 35              # Buy below this RSI
+MEAN_REV_RSI_OVERBOUGHT = 65            # Sell above this RSI
+MEAN_REV_MIN_BB_WIDTH_PCT = 0.5         # Skip if BB bandwidth < this % (squeeze)
+MEAN_REV_MAX_VOL_Z = 2.0               # Skip if volume z-score > this (breakout)
+
+# ── Pairs Trading (Simplified v1) ──
+ENABLE_PAIRS_TRADING = False             # Off by default; needs market_data wiring
+PAIRS_SYMBOLS = [
+    ("HDFCBANK", "ICICIBANK"),
+    ("TCS", "INFY"),
+    ("SBIN", "KOTAKBANK"),
+]
+PAIRS_LOOKBACK = 50                      # Candles for spread mean/std
+PAIRS_ENTRY_Z = 2.0                      # Z-score threshold for entry
+PAIRS_MIN_HISTORY = 20                   # Minimum aligned candles required
 
 # ── SEBI Algo-ID (April 2026 compliance) ──
 # A short tag attached to every live order for broker/exchange audit trail.
@@ -207,7 +252,7 @@ CORRELATION_LIMIT_ENABLED = True
 CORRELATION_LIMIT_THRESHOLD = 0.7      # avg corr with open positions
 CORRELATION_LOOKBACK_DAYS = 20
 KELLY_USE_DB_HISTORY = True            # include DB-closed trades in Kelly
-COSTS_ROUND_TRIP_BPS = 0.0             # Paper mode: no cost deduction (slippage handled separately)
+COSTS_ROUND_TRIP_BPS = 15.0             # ~0.15% round-trip (brokerage+STT+GST+stamps+slippage)
 FAT_FINGER_MAX_NOTIONAL_PCT = 40.0     # absolute hard cap notional % of capital
 PERSIST_INTRADAY_HWM = True            # persist HWM + daily_loss across restart
 

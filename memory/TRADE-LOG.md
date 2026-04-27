@@ -19,6 +19,14 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 <!-- Daily summaries will be prepended here by /daily-summary and /market-open commands -->
 
+## 2026-04-27 (Monday) — Opening
+- Bot status: RUNNING (paper mode, PID active, log confirmed at 09:15)
+- Watchlist (bot-scored): INFY (3.50), TCS (2.84), ICICIBANK (1.84), RELIANCE (1.84), KOTAKBANK (1.79)
+- Positions at open: NONE
+- Quote API: enctoken limitation — shell quotes unavailable, bot polling directly
+- ORB range: Building 09:15-09:30, breakout scan starts 09:30
+- Note: circuit_limits API failing (Bad Request) — non-blocking, bot handles scoring via candle data
+
 ## 2026-04-24 (Friday) — EOD CONFIRMED
 - Regime: STRONG_TREND_DOWN | VIX: N/A
 - Trades: 3 closed (of 5 entries, 2 orphaned during restarts) | Wins: 2 | Losses: 1 | Win Rate: 67%

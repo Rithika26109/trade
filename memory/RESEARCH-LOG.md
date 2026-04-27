@@ -32,6 +32,31 @@ _Patterns observed across multiple sessions. Updated by /weekly-review._
 
 <!-- Daily research entries will be prepended here by /pre-market command -->
 
+### 2026-04-27 Midday Update (12:03 IST)
+- NIFTY: 24,026 (+0.54%) — gap-up held, TREND_DOWN daily regime but intraday green
+- VIX: 18.93 (NORMAL) — conditions suitable for trading
+- Bot status: 0 open positions, 0 orders placed today — bot active but no signals triggered
+- Account: Rs 100 cash (paper mode), Rs 0 deployed, full daily loss headroom intact
+- Top scanner picks at midday: INFY (3.05 score, high vol+mom), TCS (2.77), ICICIBANK (2.32)
+- INFY: Rs 1,172.9 — continued momentum; pre-market gap-down (-3.27%) may have recovered
+- RELIANCE: Rs 1,338.5, gap -1.11% — weakest scanner pick, avoid
+- Afternoon outlook: cautious bullish — gap-up held but NIFTY in structural TREND_DOWN; IT sector leading
+- Quote API: returning InputException (enctoken scope limitation — market data quota may require Kite Connect subscription)
+
+## 2026-04-27 Pre-Market Research
+- US overnight: SPX +0.80% (7,165 ATH), NDQ +1.63% (24,837 ATH) — tech/semis led, broad rally
+- Asia: GIFT Nifty 24,045 (+147pts vs Friday close 23,898, gap UP ~0.62%), Nikkei +1.40% (ATH), Hang Seng -0.01% (flat)
+- India VIX: N/A (API unavailable), estimated NORMAL based on GIFT Nifty calm gap
+- NIFTY regime: TREND_DOWN (historical candles), ATR 1.68%, vol regime LOW — but gap-up opening expected
+- FII/DII: FII sold Rs 8,827 cr (Apr 24), DII bought Rs 4,700 cr — continued FII selling, absorbed by DII
+- USD/INR: 94.25 (weakest in 5 sessions) — bullish for IT exporters (TCS, INFY, WIPRO), bearish for crude importers
+- Crude (Brent): $106.92 +1.51% — elevated and rising, bearish for India macro, watch RELIANCE
+- Gold: $4,697 -0.26% — stable
+- Key news: INFY Q4 done (Apr 23) — +21% profit but modest FY27 guidance (1.5-3.5% CC); stock gap -3.27%. TCS Q4 done (Apr 9) — strong. ICICIBANK Q4 done (Apr 18) — profit +8.5%, clean NPA 0.33%, analyst upgrades. RELIANCE Q4 (Apr 24) — profit -12.6%, O2C headwinds, mixed. KOTAKBANK results next week (May 2-3). India-NZ FTA signing today.
+- Sector focus: IT positive (Nasdaq ATH + weak rupee = tailwind); Banking positive (ICICIBANK strong); Energy caution (RELIANCE mixed, crude high)
+- Watchlist today: ICICIBANK (LONG bias, strong Q4, no events), TCS (LONG bias, IT tailwind), INFY (watch ORB — gap down may set up short or reversal, check RSI before entry)
+- AVOID: RELIANCE (mixed signals), KOTAKBANK (pre-earnings caution)
+
 ## 2026-04-23 Pre-Market Research
 - US overnight: SPX +1.05% (7,137.90), NDQ +1.64% (24,657.57) — tech-led rally, megacaps led
 - Asia: SGX Nifty 24,210 (slightly below NSE prev close 24,378), Nikkei +0.58%, Hang Seng -0.25%

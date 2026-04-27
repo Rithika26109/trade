@@ -48,5 +48,5 @@ logs/journal/weekly/*
 .DS_Store
 Thumbs.db
 
-# Backtest results
-backtest/results/*.html
+# Backtest results (generated artifacts)
+backtest/results/

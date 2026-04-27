@@ -143,6 +143,14 @@ class RiskManager:
             logger.warning(f"[RISK] Trade REJECTED for {signal.symbol}: {rejection}")
             return None
 
+        # ── Hard-reject: no shorts when RSI is oversold ──
+        if signal.rsi is not None and signal.signal == Signal.SELL and signal.rsi < 30:
+            logger.warning(
+                f"[RISK] Trade REJECTED for {signal.symbol}: "
+                f"SELL at RSI {signal.rsi:.1f} < 30 (oversold bounce risk)"
+            )
+            return None
+
         # ── Check confluence score threshold ──
         if getattr(settings, 'ENABLE_CONFLUENCE_SCORING', False):
             threshold = getattr(settings, 'CONFLUENCE_THRESHOLD', 55)

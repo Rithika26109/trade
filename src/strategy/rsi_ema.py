@@ -70,23 +70,9 @@ class RSIEMAStrategy(BaseStrategy):
         # ── Check for RSI divergence (stronger signal) ──
         divergence = self._detect_rsi_divergence(df)
 
-        # ── EMA alignment: trend-continuation entry (no crossover needed) ──
-        # When EMAs are aligned AND RSI is in range AND RSI is moving in
-        # the trade direction, treat that as a valid entry.  This fires in
-        # established trends where the crossover already happened long ago.
-        ema_fast_val = df["ema_fast"].iloc[-1]
-        ema_slow_val = df["ema_slow"].iloc[-1]
-        rsi_prev = df["rsi"].iloc[-2] if len(df) >= 3 and pd.notna(df["rsi"].iloc[-2]) else rsi
-        alignment_buy = (
-            crossover is None and divergence is None
-            and ema_fast_val > ema_slow_val      # bullish alignment
-            and rsi > rsi_prev                    # RSI improving
-        )
-        alignment_sell = (
-            crossover is None and divergence is None
-            and ema_fast_val < ema_slow_val       # bearish alignment
-            and rsi < rsi_prev                    # RSI weakening
-        )
+            # NOTE: alignment_buy/sell removed — it fired on mere EMA alignment
+        # with RSI ticking by 1 point, causing whipsaw entries in choppy
+        # markets.  Entry now requires an actual crossover or divergence.
 
         # ── HTF trend confirmation ──
         htf_aligned = True
@@ -107,7 +93,7 @@ class RSIEMAStrategy(BaseStrategy):
                         htf_info = " HTF confirmed"
 
         # ── BUY SIGNAL ──
-        if crossover == "BULLISH" or divergence == "BULLISH" or alignment_buy:
+        if crossover == "BULLISH" or divergence == "BULLISH":
             rsi_ok = rsi_ranges["buy_min"] <= rsi <= rsi_ranges["buy_max"]
             vwap_ok = (close > vwap) if vwap else True
 
@@ -115,7 +101,7 @@ class RSIEMAStrategy(BaseStrategy):
             if divergence == "BULLISH" and not rsi_ok:
                 rsi_ok = rsi < 60  # More lenient for divergence
 
-            if not htf_aligned and divergence != "BULLISH" and not alignment_buy:
+            if not htf_aligned and divergence != "BULLISH":
                 return self._hold(symbol, f"EMA bullish crossover{htf_info}")
 
             if rsi_ok and vwap_ok:
@@ -128,8 +114,6 @@ class RSIEMAStrategy(BaseStrategy):
                     reason_parts.append("EMA bullish crossover")
                 if divergence == "BULLISH":
                     reason_parts.append("RSI bullish divergence")
-                if alignment_buy:
-                    reason_parts.append("EMA bullish alignment")
                 reason_parts.append(f"RSI={rsi:.1f}")
                 if vwap:
                     reason_parts.append(f"above VWAP={vwap:.2f}")
@@ -146,6 +130,8 @@ class RSIEMAStrategy(BaseStrategy):
                     target=target,
                     reason=" | ".join(reason_parts),
                     strategy=self.name,
+                    rsi=rsi,
+                    entry_atr=atr,
                 )
 
                 if getattr(settings, 'ENABLE_CONFLUENCE_SCORING', False):
@@ -156,14 +142,14 @@ class RSIEMAStrategy(BaseStrategy):
                 return signal
 
         # ── SELL SIGNAL ──
-        if crossover == "BEARISH" or divergence == "BEARISH" or alignment_sell:
+        if crossover == "BEARISH" or divergence == "BEARISH":
             rsi_ok = rsi_ranges["sell_min"] <= rsi <= rsi_ranges["sell_max"]
             vwap_ok = (close < vwap) if vwap else True
 
             if divergence == "BEARISH" and not rsi_ok:
                 rsi_ok = rsi > 40
 
-            if not htf_aligned and divergence != "BEARISH" and not alignment_sell:
+            if not htf_aligned and divergence != "BEARISH":
                 return self._hold(symbol, f"EMA bearish crossover{htf_info}")
 
             if rsi_ok and vwap_ok:
@@ -176,8 +162,6 @@ class RSIEMAStrategy(BaseStrategy):
                     reason_parts.append("EMA bearish crossover")
                 if divergence == "BEARISH":
                     reason_parts.append("RSI bearish divergence")
-                if alignment_sell:
-                    reason_parts.append("EMA bearish alignment")
                 reason_parts.append(f"RSI={rsi:.1f}")
                 if vwap:
                     reason_parts.append(f"below VWAP={vwap:.2f}")
@@ -192,6 +176,8 @@ class RSIEMAStrategy(BaseStrategy):
                     target=target,
                     reason=" | ".join(reason_parts),
                     strategy=self.name,
+                    rsi=rsi,
+                    entry_atr=atr,
                 )
 
                 if getattr(settings, 'ENABLE_CONFLUENCE_SCORING', False):
@@ -201,7 +187,7 @@ class RSIEMAStrategy(BaseStrategy):
 
                 return signal
 
-        return self._hold(symbol, f"No crossover or alignment signal (RSI={rsi:.1f})")
+        return self._hold(symbol, f"No crossover or divergence signal (RSI={rsi:.1f})")
 
     def _get_rsi_ranges(self, regime: MarketRegime = None) -> dict:
         """Adapt RSI ranges based on market regime."""
@@ -219,7 +205,8 @@ class RSIEMAStrategy(BaseStrategy):
 
         elif regime in (MarketRegime.STRONG_TREND_DOWN, MarketRegime.TREND_DOWN):
             # In downtrend: allow oversold bounces and wider sell range
-            return {"buy_min": 15, "buy_max": 45, "sell_min": 25, "sell_max": 70}
+            # sell_min clamped to 30 — hard rule against shorting oversold stocks
+            return {"buy_min": 15, "buy_max": 45, "sell_min": 30, "sell_max": 70}
 
         else:  # RANGING or VOLATILE
             # Mean-reversion: wider ranges to catch extremes

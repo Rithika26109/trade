@@ -5,13 +5,17 @@ Tracks open positions, monitors stop-loss/target hits, and manages exits.
 Works in both paper and live modes.
 """
 
-from datetime import datetime
+from datetime import datetime, time as dtime
 from queue import Queue, Empty
 
 from config import settings
 from src.execution.order_manager import Order, OrderManager
 from src.strategy.base import Signal
 from src.utils.logger import logger
+
+# Time-decay: tighten stops after this time (matches backtest)
+_MID_SESSION_TIME = dtime(13, 0)
+_LATE_SESSION_TIME = dtime(14, 30)
 
 
 class PositionManager:
@@ -187,22 +191,74 @@ class PositionManager:
             logger.error(f"modify_SLM_trigger failed for {pos.symbol}: {e}")
 
     def _update_trailing_stop(self, pos: Order, current_price: float):
-        """Update trailing stop-loss as price moves favorably."""
-        hwm = self._high_water_marks.get(pos.order_id, pos.executed_price)
-        trail_pct = settings.TRAILING_STOP_PCT / 100
+        """ATR-based trailing stop matching backtest logic exactly.
+
+        - At 1×ATR profit: move stop to breakeven
+        - At 1.5×ATR profit: lock in 0.5×ATR profit
+        - Late session (after 14:30): tighten to 1×ATR from current price
+
+        Falls back to percentage-based trailing if entry_atr is not set.
+        """
+        entry_atr = getattr(pos, 'entry_atr', 0.0)
+
+        if entry_atr <= 0:
+            # Fallback: simple percentage trailing for legacy orders
+            hwm = self._high_water_marks.get(pos.order_id, pos.executed_price)
+            trail_pct = settings.TRAILING_STOP_PCT / 100
+            if pos.signal == Signal.BUY:
+                hwm = max(hwm, current_price)
+                new_sl = hwm * (1 - trail_pct)
+                if new_sl > pos.stop_loss:
+                    pos.stop_loss = new_sl
+            else:
+                hwm = min(hwm, current_price)
+                new_sl = hwm * (1 + trail_pct)
+                if new_sl < pos.stop_loss:
+                    pos.stop_loss = new_sl
+            self._high_water_marks[pos.order_id] = hwm
+            return
+
+        # ── ATR-based trailing (matches backtest) ──
+        # Check session phase for time-decay
+        mid_session = False
+        late_session = False
+        try:
+            now_time = settings.now_ist().time()
+            mid_session = now_time >= _MID_SESSION_TIME
+            late_session = now_time >= _LATE_SESSION_TIME
+        except Exception:
+            pass
 
         if pos.signal == Signal.BUY:
-            hwm = max(hwm, current_price)
-            new_sl = hwm * (1 - trail_pct)
-            if new_sl > pos.stop_loss:  # Only tighten, never widen
-                pos.stop_loss = new_sl
+            profit = current_price - pos.executed_price
+            # Trail: breakeven at 1x ATR, lock profit above that
+            if profit >= 2.0 * entry_atr:
+                pos.stop_loss = max(pos.stop_loss, pos.executed_price + 1.0 * entry_atr)
+            elif profit >= 1.5 * entry_atr:
+                pos.stop_loss = max(pos.stop_loss, pos.executed_price + 0.5 * entry_atr)
+            elif profit >= 1.0 * entry_atr:
+                pos.stop_loss = max(pos.stop_loss, pos.executed_price)  # breakeven
+            # Time-decay: tighten in afternoon
+            if late_session:
+                time_sl = current_price - (1.0 * entry_atr)
+                pos.stop_loss = max(pos.stop_loss, time_sl)
+            elif mid_session:
+                time_sl = current_price - (1.5 * entry_atr)
+                pos.stop_loss = max(pos.stop_loss, time_sl)
         else:
-            hwm = min(hwm, current_price)
-            new_sl = hwm * (1 + trail_pct)
-            if new_sl < pos.stop_loss:  # Only tighten, never widen
-                pos.stop_loss = new_sl
-
-        self._high_water_marks[pos.order_id] = hwm
+            profit = pos.executed_price - current_price
+            if profit >= 2.0 * entry_atr:
+                pos.stop_loss = min(pos.stop_loss, pos.executed_price - 1.0 * entry_atr)
+            elif profit >= 1.5 * entry_atr:
+                pos.stop_loss = min(pos.stop_loss, pos.executed_price - 0.5 * entry_atr)
+            elif profit >= 1.0 * entry_atr:
+                pos.stop_loss = min(pos.stop_loss, pos.executed_price)  # breakeven
+            if late_session:
+                time_sl = current_price + (1.0 * entry_atr)
+                pos.stop_loss = min(pos.stop_loss, time_sl)
+            elif mid_session:
+                time_sl = current_price + (1.5 * entry_atr)
+                pos.stop_loss = min(pos.stop_loss, time_sl)
 
     def _should_exit(self, pos: Order, current_price: float) -> str | None:
         """

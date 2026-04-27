@@ -27,15 +27,17 @@ from config import settings
 from src.auth.login import ZerodhaAuth
 from src.data.market_data import MarketData, resample_to_htf
 from src.data.websocket import TickerManager
-from src.execution.order_manager import OrderManager
+from src.execution.order_manager import Order, OrderManager, OrderStatus
 from src.execution.position_manager import PositionManager
 from src.indicators.indicators import add_all_indicators, drop_incomplete_last_bar
 from src.indicators.market_regime import detect_regime, MarketRegime
 from src.risk.risk_manager import RiskManager
 from src.scanner.stock_scanner import StockScanner
 from src.strategy.base import Signal, TradeSignal
+from src.strategy.mean_reversion import MeanReversionStrategy
 from src.strategy.orchestrator import StrategyOrchestrator
 from src.strategy.orb import ORBStrategy
+from src.strategy.pairs import PairsTradingStrategy
 from src.strategy.rsi_ema import RSIEMAStrategy
 from src.strategy.vwap_supertrend import VWAPSupertrendStrategy
 from src.utils.db import TradeDB
@@ -149,6 +151,8 @@ class TradingBot:
         self.risk_manager = RiskManager(self.order_manager, db=self.db)
         # Let RiskManager query circuit limits / prev-close from MarketData.
         self.risk_manager.market_data = self.market_data
+        # Wire paper-mode capital callback for rejection simulation.
+        self.order_manager._get_available_capital = lambda: self.risk_manager.capital
 
         # Apply daily-plan risk overrides (already clamped by plan_loader).
         if self.daily_plan and self.daily_plan.risk_overrides:
@@ -183,11 +187,19 @@ class TradingBot:
             self.strategy = RSIEMAStrategy()
         elif strategy_name == "VWAP_SUPERTREND":
             self.strategy = VWAPSupertrendStrategy()
+        elif strategy_name == "MEAN_REVERSION":
+            self.strategy = MeanReversionStrategy()
+        elif strategy_name == "PAIRS":
+            self.strategy = PairsTradingStrategy(market_data=self.market_data)
         elif strategy_name == "MULTI":
             self.strategy = StrategyOrchestrator()
         else:
             logger.warning(f"Unknown strategy '{strategy_name}', defaulting to ORB")
             self.strategy = ORBStrategy()
+
+        # Wire pairs strategy into orchestrator if market_data is available
+        if isinstance(self.strategy, StrategyOrchestrator) and self.market_data:
+            self.strategy.add_pairs_strategy(self.market_data)
 
         logger.info(f"Strategy: {self.strategy.name}")
 
@@ -485,6 +497,7 @@ class TradingBot:
             return
 
         # ── Analyze each stock for signals ──
+        regime = None
         for symbol in self.todays_watchlist:
             # Skip if we already have a position
             if self.position_manager.has_position(symbol):
@@ -643,7 +656,7 @@ class TradingBot:
 
         # ── Log remaining trades and clear open positions ──
         for order in self.order_manager.orders:
-            if order.order_id not in self._logged_order_ids:
+            if not order.is_open and order.order_id not in self._logged_order_ids:
                 self.db.log_trade(order)
                 self.risk_manager.record_trade_result(order.pnl)
                 self.risk_manager.update_capital(self.risk_manager.capital + order.pnl)
@@ -659,6 +672,11 @@ class TradingBot:
                     reason="End of day square-off",
                 )
                 self._logged_order_ids.add(order.order_id)
+            elif order.is_open and order.order_id not in self._logged_order_ids:
+                logger.error(
+                    f"[EOD] {order.symbol} still open after square-off — "
+                    f"broker close likely failed. Check manually."
+                )
         self.db.clear_open_positions()
 
         # ── Generate daily report ──
@@ -781,32 +799,60 @@ class TradingBot:
     def _recover_orphaned_positions(self):
         """Recover open positions from a previous crashed session.
 
-        LIVE: reconcile with kite.positions() — if there are actual live
-        broker positions we didn't know about, halt immediately rather
-        than blindly clearing the DB (which would leave the bot blind to
-        real exposure). Let the reconciliation path in setup() handle it.
+        LIVE: reconstruct Order objects from the DB and inject them into
+        order_manager and position_manager so that reconcile_with_broker()
+        can diff against actual broker state.
 
         PAPER: no broker to check; just clear the stale DB rows.
         """
         try:
             orphaned = self.db.get_open_positions()
-            if orphaned:
+            if not orphaned:
+                if self.mode == "paper" or not self.kite:
+                    self.db.clear_open_positions()
+                return
+
+            logger.warning(
+                f"Found {len(orphaned)} orphaned positions from previous session"
+            )
+            for row in orphaned:
                 logger.warning(
-                    f"Found {len(orphaned)} orphaned positions from previous session"
+                    f"  Orphaned: {row['signal']} {row['symbol']} "
+                    f"qty={row['quantity']} entry={row['entry_price']:.2f}"
                 )
-                for row in orphaned:
-                    logger.warning(
-                        f"  Orphaned: {row['signal']} {row['symbol']} "
-                        f"qty={row['quantity']} entry={row['entry_price']:.2f}"
-                    )
 
             if self.mode == "paper" or not self.kite:
                 # No broker to reconcile with — safe to drop stale rows.
                 self.db.clear_open_positions()
                 return
 
-            # Live mode: do NOT clear until we've confirmed broker state.
-            # The reconcile step in setup() will raise if there's drift.
+            # Live mode: reconstruct in-memory state from DB so that
+            # reconcile_with_broker() can compare against actual broker positions.
+            for row in orphaned:
+                order = Order(
+                    order_id=row["order_id"],
+                    symbol=row["symbol"],
+                    exchange=row.get("exchange", "NSE"),
+                    signal=Signal(row["signal"]),
+                    quantity=row["quantity"],
+                    price=row["entry_price"],
+                    stop_loss=row["stop_loss"],
+                    target=row["target"],
+                    order_type="MARKET",
+                    status=OrderStatus.EXECUTED,
+                    executed_price=row["entry_price"],
+                    is_paper=bool(row.get("is_paper", 0)),
+                    is_open=True,
+                    reason=row.get("reason", ""),
+                    strategy=row.get("strategy", ""),
+                )
+                self.order_manager.orders.append(order)
+                self.position_manager.open_positions.append(order)
+                logger.info(
+                    f"Recovered position: {order.signal.value} {order.symbol} "
+                    f"qty={order.quantity}"
+                )
+
             logger.info("Live mode: broker reconciliation will verify state next.")
         except Exception as e:
             logger.error(f"Crash recovery failed: {e}")

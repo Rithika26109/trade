@@ -190,3 +190,159 @@ class TestPnLAggregation:
         total_pnl = om.get_todays_pnl()
         expected = order1.pnl + order2.pnl
         assert total_pnl == pytest.approx(expected, rel=1e-6)
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Paper Simulation Tests (rejection, partial fills, dynamic slippage)
+# ═════════════════════════════════════════════════════════════════════════
+
+
+class TestPaperRejection:
+
+    def test_margin_rejection(self, mock_order_manager, monkeypatch):
+        """Order exceeding available capital is rejected."""
+        om = mock_order_manager
+        monkeypatch.setattr(settings, "PAPER_SIMULATE_REJECTIONS", True)
+        monkeypatch.setattr(settings, "PAPER_RANDOM_REJECTION_PCT", 0)  # disable random
+        om._get_available_capital = lambda: 10_000  # only 10k
+
+        sig = _make_trade_signal(price=2500.0, quantity=10)  # 25k notional
+        order = om.place_order(sig)
+
+        assert order is None
+        rejected = [o for o in om.orders if o.status == OrderStatus.REJECTED]
+        assert len(rejected) == 1
+        assert "Insufficient margin" in rejected[0].rejection_reason
+
+    def test_random_rejection_forced(self, mock_order_manager, monkeypatch):
+        """Force 100% random rejection rate."""
+        om = mock_order_manager
+        monkeypatch.setattr(settings, "PAPER_SIMULATE_REJECTIONS", True)
+        monkeypatch.setattr(settings, "PAPER_RANDOM_REJECTION_PCT", 100)
+        monkeypatch.setattr(settings, "PAPER_MARGIN_CHECK", False)
+
+        sig = _make_trade_signal()
+        order = om.place_order(sig)
+
+        assert order is None
+        rejected = [o for o in om.orders if o.status == OrderStatus.REJECTED]
+        assert len(rejected) == 1
+        assert "Simulated exchange rejection" in rejected[0].rejection_reason
+
+    def test_no_rejection_when_disabled(self, mock_order_manager, monkeypatch):
+        """With toggle off, no rejections (backward compat)."""
+        om = mock_order_manager
+        monkeypatch.setattr(settings, "PAPER_SIMULATE_REJECTIONS", False)
+
+        sig = _make_trade_signal()
+        order = om.place_order(sig)
+
+        assert order is not None
+        assert order.status == OrderStatus.EXECUTED
+
+    def test_sufficient_margin_passes(self, mock_order_manager, monkeypatch):
+        """Order within capital is accepted."""
+        om = mock_order_manager
+        monkeypatch.setattr(settings, "PAPER_SIMULATE_REJECTIONS", True)
+        monkeypatch.setattr(settings, "PAPER_RANDOM_REJECTION_PCT", 0)
+        om._get_available_capital = lambda: 100_000
+
+        sig = _make_trade_signal(price=2500.0, quantity=10)  # 25k notional
+        order = om.place_order(sig)
+
+        assert order is not None
+        assert order.status == OrderStatus.EXECUTED
+
+
+class TestPaperPartialFills:
+
+    def test_partial_fill_reduces_quantity(self, mock_order_manager, monkeypatch):
+        """When partial fill fires, order.quantity < requested."""
+        import random as rng
+        rng.seed(42)
+
+        om = mock_order_manager
+        monkeypatch.setattr(settings, "PAPER_SIMULATE_PARTIAL_FILLS", True)
+        monkeypatch.setattr(settings, "PAPER_PARTIAL_FILL_PROB", 1.0)  # force partial
+
+        sig = _make_trade_signal(quantity=100)
+        order = om.place_order(sig)
+
+        assert order is not None
+        assert order.quantity < 100
+        assert order.requested_quantity == 100
+        assert order.original_quantity == order.quantity
+
+    def test_full_fill_when_disabled(self, mock_order_manager, monkeypatch):
+        """With toggle off, full quantity always fills."""
+        om = mock_order_manager
+        monkeypatch.setattr(settings, "PAPER_SIMULATE_PARTIAL_FILLS", False)
+
+        sig = _make_trade_signal(quantity=50)
+        order = om.place_order(sig)
+
+        assert order is not None
+        assert order.quantity == 50
+
+    def test_full_fill_most_of_the_time(self, mock_order_manager, monkeypatch):
+        """With low probability, most orders fill fully."""
+        import random as rng
+        rng.seed(0)
+
+        om = mock_order_manager
+        monkeypatch.setattr(settings, "PAPER_SIMULATE_PARTIAL_FILLS", True)
+        monkeypatch.setattr(settings, "PAPER_PARTIAL_FILL_PROB", 0.0)  # 0% partial
+
+        sig = _make_trade_signal(quantity=50)
+        order = om.place_order(sig)
+
+        assert order is not None
+        assert order.quantity == 50
+
+
+class TestPaperDynamicSlippage:
+
+    def test_dynamic_slippage_differs_from_fixed(self, mock_order_manager, monkeypatch):
+        """Dynamic slippage uses base rate, not the legacy fixed rate."""
+        om = mock_order_manager
+        monkeypatch.setattr(settings, "PAPER_DYNAMIC_SLIPPAGE", True)
+        monkeypatch.setattr(settings, "PAPER_BASE_SLIPPAGE_PCT", 0.03)
+        # Disable multipliers that need market data
+        monkeypatch.setattr(settings, "PAPER_SLIPPAGE_VOLATILITY_MULT", False)
+        monkeypatch.setattr(settings, "PAPER_SLIPPAGE_TIME_MULT", False)
+        monkeypatch.setattr(settings, "PAPER_SLIPPAGE_SIZE_MULT", False)
+
+        sig = _make_trade_signal(price=2500.0)
+        order = om.place_order(sig)
+
+        assert order is not None
+        expected_slip = 2500.0 * (0.03 / 100)
+        assert order.executed_price == pytest.approx(2500.0 + expected_slip, rel=1e-6)
+
+    def test_slippage_capped(self, mock_order_manager, monkeypatch):
+        """Slippage never exceeds PAPER_SLIPPAGE_MAX_PCT."""
+        om = mock_order_manager
+        monkeypatch.setattr(settings, "PAPER_DYNAMIC_SLIPPAGE", True)
+        monkeypatch.setattr(settings, "PAPER_BASE_SLIPPAGE_PCT", 10.0)  # absurdly high
+        monkeypatch.setattr(settings, "PAPER_SLIPPAGE_MAX_PCT", 0.50)
+        monkeypatch.setattr(settings, "PAPER_SLIPPAGE_VOLATILITY_MULT", False)
+        monkeypatch.setattr(settings, "PAPER_SLIPPAGE_TIME_MULT", False)
+        monkeypatch.setattr(settings, "PAPER_SLIPPAGE_SIZE_MULT", False)
+
+        sig = _make_trade_signal(price=2500.0)
+        order = om.place_order(sig)
+
+        assert order is not None
+        max_slip = 2500.0 * (0.50 / 100)
+        assert order.executed_price <= 2500.0 + max_slip + 0.01
+
+    def test_fixed_slippage_when_disabled(self, mock_order_manager, monkeypatch):
+        """With toggle off, original fixed slippage is used."""
+        om = mock_order_manager
+        monkeypatch.setattr(settings, "PAPER_DYNAMIC_SLIPPAGE", False)
+
+        sig = _make_trade_signal(price=2500.0)
+        order = om.place_order(sig)
+
+        expected = 2500.0 * (settings.PAPER_SLIPPAGE_PCT / 100)
+        assert order.executed_price == pytest.approx(2500.0 + expected, rel=1e-6)

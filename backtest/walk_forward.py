@@ -21,19 +21,18 @@ import pandas as pd
 from backtesting import Backtest
 
 from backtest.run_backtest import (
-    ORBBacktest,
-    RSIEMABacktest,
-    VWAPSupertrendBacktest,
     load_sample_data,
     zerodha_commission,
 )
+from backtest.run_backtest_v2 import ORBv2, RSIEMAv2, VWAPSupertrendv2
+from backtest.run_backtest import zerodha_commission_with_slippage
 
 
 # ── Strategy lookup ──
 STRATEGY_MAP = {
-    "ORB": ORBBacktest,
-    "RSI_EMA": RSIEMABacktest,
-    "VWAP_SUPERTREND": VWAPSupertrendBacktest,
+    "ORB": ORBv2,
+    "RSI_EMA": RSIEMAv2,
+    "VWAP_SUPERTREND": VWAPSupertrendv2,
 }
 
 # ── Window Configuration ──
@@ -59,7 +58,7 @@ def _date_groups(df: pd.DataFrame) -> list:
     return sorted(set(d.date() for d in df.index))
 
 
-def walk_forward(df: pd.DataFrame, strategy_class, capital: int = 100_000):
+def walk_forward(df: pd.DataFrame, strategy_class, capital: int = 100_000, commission_func=None):
     """
     Run walk-forward analysis.
 
@@ -69,6 +68,8 @@ def walk_forward(df: pd.DataFrame, strategy_class, capital: int = 100_000):
 
     Returns a list of dicts with in-sample and out-of-sample metrics per window.
     """
+    if commission_func is None:
+        commission_func = zerodha_commission_with_slippage
     unique_dates = _date_groups(df)
     total_days = len(unique_dates)
     window_size = TRAIN_DAYS + TEST_DAYS
@@ -108,7 +109,7 @@ def walk_forward(df: pd.DataFrame, strategy_class, capital: int = 100_000):
             bt_train = Backtest(
                 train_df, strategy_class,
                 cash=capital,
-                commission=zerodha_commission,
+                commission=commission_func,
                 exclusive_orders=True,
             )
             train_stats = bt_train.run()
@@ -125,7 +126,7 @@ def walk_forward(df: pd.DataFrame, strategy_class, capital: int = 100_000):
             bt_test = Backtest(
                 test_df, strategy_class,
                 cash=capital,
-                commission=zerodha_commission,
+                commission=commission_func,
                 exclusive_orders=True,
             )
             test_stats = bt_test.run()
