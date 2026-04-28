@@ -74,3 +74,6 @@ _Updated by /weekly-review and /daily-summary commands. Most recent first._
 - **#lesson 2026-04-24:** Exit events not written during EOD square-off — fix exit logger to fire on all exit paths (target, SL, EOD close), not just during active signal processing.
 - **#lesson 2026-04-24:** Avoid shorting when RSI < 30 at entry. In STRONG_TREND_DOWN, wait for RSI to bounce to 40-50 before re-entering short — catching a pullback gives better R:R than chasing an already-oversold move.
 - **#lesson 2026-04-24:** Track win rate by MULTI confirmation count (1 vs 2 vs 3 strategies agreeing). Hypothesis: 2+ confirmations should produce higher win rates. Data needed.
+- **#lesson 2026-04-27:** Bot launched 3.5h late — check launchd job (`launchctl list | grep trade`, `cron_launch.log`) before each session. A missed morning means missed ORB setups.
+- **#lesson 2026-04-27:** Premature EOD bug — bot called END OF DAY at 12:45 PM instead of 3:15 PM. Likely a timezone or startup-time comparison error. Add guard: `assert eod_time > now + 60min` on launch.
+- **#lesson 2026-04-27:** No-trade days are correct behavior when all signals have R:R < 1.5 or only 1 strategy confirms. Do not force trades to have something to review.

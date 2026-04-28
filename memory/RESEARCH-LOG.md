@@ -4,6 +4,18 @@ Daily market research, macro observations, and recurring patterns. Most recent f
 
 ---
 
+## 2026-04-28 Midday Update (12:00 IST)
+
+- Regime: RANGING all morning (09:30–12:00), no regime shift
+- NIFTY: 24037 (-0.23%), daily regime TREND_DOWN
+- VIX: 17.88 (NORMAL)
+- Trades: 0 executed — 7 signals rejected by risk filter (R:R < 1.5 across all)
+  - Rejections: BHARTIARTL x2 (0.81–0.82), HDFCBANK x3 (0.95–1.18), ICICIBANK (0.96), TCS (1.28)
+- Bot: healthy, on time, scanning every 5 min
+- Top afternoon candidates: INFY (score 3.05), TCS (2.39), ICICIBANK (2.06)
+- Pattern: RANGING market generating sub-1.5 R:R setups — correct to skip, not a bot bug
+- Note: No-trade morning is valid behavior — do not override risk filters
+
 ## Entry Format
 
 ```
@@ -31,6 +43,20 @@ _Patterns observed across multiple sessions. Updated by /weekly-review._
 ---
 
 <!-- Daily research entries will be prepended here by /pre-market command -->
+
+## 2026-04-28 Pre-Market Research
+- US overnight: SPX +0.12% (7,173.91), NDQ +0.20% (24,887.10) — tech-led narrow gain; DJIA -0.13% (mixed breadth)
+- Asia: SGX Nifty 24,043 (-0.32% vs 24,119 prior close) → gap-DOWN ~0.3% expected; Nikkei -0.43%, Hang Seng -0.43%
+- India VIX: N/A (API unavailable) — estimated NORMAL given contained gap size
+- NIFTY regime: STRONG_TREND_DOWN, ATR 1.62%, vol regime LOW — multi-day downtrend intact; gap-down opening likely resumes pressure
+- FII/DII: FII sold Rs 944.47 cr (Apr 27), DII bought Rs 3,871.11 cr — DII absorbing FII selling; net bearish flow
+- USD/INR: Not confirmed today; prior 94.25 (weak rupee) — bullish for IT exporters if sustained
+- Crude (Brent): ~$108.63 +0.37% — elevated and rising; bearish India macro, watch RELIANCE, ONGC; inflationary risk
+- Gold: ~$4,692 +0.13% — slight safe-haven demand; US/Iran tensions ongoing (Strait of Hormuz)
+- Key news: Maruti Suzuki Q4 results TODAY — auto sector event. KOTAKBANK results May 3 (avoid this week). RBI ECL provisioning from Apr 2027 (banking sector clarity). TCS-Siemens Energy AI partnership (positive TCS sentiment). INFY dropped from top-10 most-valuable after weak FY27 guidance (1.5-3.5% CC).
+- Sector focus: IT mixed (TCS strong Q4, INFY weak guidance — sector sentiment net cautious); Banking positive (ICICIBANK, HDFCBANK strong Q4 done); Energy caution (crude high, RELIANCE mixed)
+- Watchlist today: TCS (LONG bias, strong earnings, AI partnership), ICICIBANK (LONG bias, clean Q4, analyst upgrades), INFY (CAUTION — weak guidance overhang, scanner top pick but sentiment negative; wait for RSI 40-60 before entry)
+- AVOID: KOTAKBANK (pre-earnings May 3, analyst downgrade, investigation), RELIANCE (momentum score low, negative gap -1.11%)
 
 ### 2026-04-27 Midday Update (12:03 IST)
 - NIFTY: 24,026 (+0.54%) — gap-up held, TREND_DOWN daily regime but intraday green

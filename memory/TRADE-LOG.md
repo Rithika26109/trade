@@ -19,6 +19,20 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 <!-- Daily summaries will be prepended here by /daily-summary and /market-open commands -->
 
+## 2026-04-28 (Tuesday) — Opening
+- NIFTY open: ~gap-down ~0.3% (SGX Nifty 24,043 vs prior close 24,119); STRONG_TREND_DOWN regime
+- Key gaps: SGX Nifty -0.32%. INFY caution (weak FY27 guidance), TCS positive (AI partnership). RELIANCE avoided (score low, negative gap -1.11%)
+- Watchlist (bot-selected): INFY, TCS, ICICIBANK, HDFCBANK, BHARTIARTL
+- Bot status: RUNNING (paper mode, PID 73404, launched on-time 09:05:03 IST)
+- Positions at open: NONE
+
+## 2026-04-27 (Monday) — EOD
+- Regime: TREND_UP | VIX: N/A
+- Trades: 0 | Wins: 0 | Losses: 0 | Win Rate: N/A
+- P&L: Rs 0.00 (paper capital intact at Rs 1,00,000)
+- Key trades: None — all signals rejected (KOTAKBANK SELL R:R 0.87-0.90, HDFCBANK BUY R:R 0.71)
+- Notes: Infrastructure issues — bot started at 12:42 PM (3.5h late), premature EOD bug at 12:45 PM. No ORB breakouts; all 5 watchlist stocks stayed in range. Risk filter correctly rejected poor R:R signals. No pre-market plan generated.
+
 ## 2026-04-27 (Monday) — Opening
 - Bot status: RUNNING (paper mode, PID active, log confirmed at 09:15)
 - Watchlist (bot-scored): INFY (3.50), TCS (2.84), ICICIBANK (1.84), RELIANCE (1.84), KOTAKBANK (1.79)

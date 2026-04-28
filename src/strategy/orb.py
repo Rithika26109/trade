@@ -88,9 +88,8 @@ class ORBStrategy(BaseStrategy):
                 return self._hold(symbol, f"ORB range too wide ({range_pct:.2f}%)")
 
         # ── Market regime filter ──
-        if regime is not None and getattr(settings, 'ENABLE_REGIME_DETECTION', False):
-            if regime == MarketRegime.RANGING:
-                return self._hold(symbol, f"Ranging market (regime: {regime.value})")
+        # Removed hard RANGING block — let the regime tracker learn from data
+        # which regimes work for ORB instead of hard-coding assumptions.
 
         current_close = df["close"].iloc[-1]
         current_high = df["high"].iloc[-1]

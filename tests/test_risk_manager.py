@@ -118,13 +118,15 @@ class TestCircuitBreakers:
         om = mock_order_manager
         rm = mock_risk_manager
 
-        # Open exactly MAX_OPEN_POSITIONS (default 2)
+        # Open exactly MAX_OPEN_POSITIONS (4)
         _make_open_order(om, symbol="TCS", is_open=True)
         _make_open_order(om, symbol="INFY", is_open=True)
+        _make_open_order(om, symbol="HDFCBANK", is_open=True)
+        _make_open_order(om, symbol="RELIANCE", is_open=True)
 
         sig = _make_signal(symbol="SBIN")
         result = rm.evaluate(sig)
-        assert result is None, "3rd position should be rejected"
+        assert result is None, "5th position should be rejected"
 
     def test_consecutive_loss_pause(self, mock_risk_manager):
         """After MAX_CONSECUTIVE_LOSSES, the manager pauses trading."""

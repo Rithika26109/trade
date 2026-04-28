@@ -44,9 +44,8 @@ class VWAPSupertrendStrategy(BaseStrategy):
             return self._hold(symbol, "Not enough data")
 
         # ── Market regime filter ──
-        if regime is not None and getattr(settings, 'ENABLE_REGIME_DETECTION', False):
-            if regime == MarketRegime.RANGING:
-                return self._hold(symbol, f"Ranging market — Supertrend unreliable")
+        # Removed hard RANGING block — let regime tracker weight this
+        # strategy down in regimes where it underperforms.
 
         # Latest values
         close = df["close"].iloc[-1]

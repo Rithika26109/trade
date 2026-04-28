@@ -53,8 +53,8 @@ class RSIEMAStrategy(BaseStrategy):
         # ── ADX trend strength filter ──
         if "adx" in df.columns:
             adx = df["adx"].iloc[-1]
-            if not pd.isna(adx) and adx < settings.ADX_RANGING:
-                return self._hold(symbol, f"ADX too low ({adx:.1f}) — no clear trend")
+            if not pd.isna(adx) and adx < 10:
+                return self._hold(symbol, f"ADX too low ({adx:.1f}) — no directional movement")
 
         # ── Get adaptive RSI ranges based on regime ──
         rsi_ranges = self._get_rsi_ranges(regime)

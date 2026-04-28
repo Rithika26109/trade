@@ -224,7 +224,7 @@ ATR_MULTIPLIER = 1.5
 # ── Risk Management ──
 RISK_PER_TRADE_PCT = 1.0           # Max 1% risk per trade
 MAX_DAILY_LOSS_PCT = 3.0           # Stop trading after 3% daily loss
-MAX_TRADES_PER_DAY = 5             # Maximum trades in a day
+MAX_TRADES_PER_DAY = 7             # Maximum trades in a day
 MAX_OPEN_POSITIONS = 2             # Maximum concurrent positions
 MIN_RISK_REWARD_RATIO = 2.0        # Minimum 1:2 risk/reward
 MAX_POSITION_PCT = 30.0            # Max 30% of capital in one trade

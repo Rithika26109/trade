@@ -70,7 +70,7 @@ RISK_PER_TRADE_PCT = 1.0  # Max 1% of capital risked per trade
 MAX_DAILY_LOSS_PCT = 3.0  # Stop trading after 3% daily loss
 MAX_TRADES_PER_DAY = 7  # Maximum number of trades in a day
 MAX_OPEN_POSITIONS = 4  # Maximum concurrent open positions
-MIN_RISK_REWARD_RATIO = 1.5  # Minimum 1:1.5 risk/reward
+MIN_RISK_REWARD_RATIO = 1.2  # Minimum 1:1.2 risk/reward (net of costs)
 MAX_POSITION_PCT = 30.0  # Max 30% of capital in a single position
 MAX_CONSECUTIVE_LOSSES = 3  # Pause after 3 consecutive losses
 PAUSE_AFTER_LOSSES_MINUTES = 30  # Pause duration after consecutive losses
@@ -91,7 +91,7 @@ ADX_RANGING = 15  # ADX below this = ranging/choppy
 
 # ── Confluence Scoring ──
 ENABLE_CONFLUENCE_SCORING = True
-CONFLUENCE_THRESHOLD = 40  # Minimum score (0-100) to take a trade
+CONFLUENCE_THRESHOLD = 25  # Minimum score (0-100) to take a trade
 
 # ── Volatility (VIX) Scaling ──
 VOLATILITY_SCALING_ENABLED = True
@@ -153,8 +153,8 @@ PAPER_SLIPPAGE_MAX_PCT = 0.50           # hard cap on slippage %
 
 # ── Mean-Reversion Strategy ──
 MEAN_REV_ADX_MAX = 20                   # Only activate below this ADX (ranging market)
-MEAN_REV_RSI_OVERSOLD = 35              # Buy below this RSI
-MEAN_REV_RSI_OVERBOUGHT = 65            # Sell above this RSI
+MEAN_REV_RSI_OVERSOLD = 40              # Buy below this RSI (relaxed for ranging)
+MEAN_REV_RSI_OVERBOUGHT = 60            # Sell above this RSI (relaxed for ranging)
 MEAN_REV_MIN_BB_WIDTH_PCT = 0.5         # Skip if BB bandwidth < this % (squeeze)
 MEAN_REV_MAX_VOL_Z = 2.0               # Skip if volume z-score > this (breakout)
 

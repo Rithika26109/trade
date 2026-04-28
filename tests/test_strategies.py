@@ -178,7 +178,7 @@ class TestRSIEMAStrategy:
         assert result.signal == Signal.SELL
 
     def test_rsi_ema_adx_filter(self):
-        """ADX < ADX_RANGING -> HOLD regardless of crossover."""
+        """ADX < 10 -> HOLD regardless of crossover."""
         strat = RSIEMAStrategy()
         rows = self._base_rows(10)
         # Set up a bullish crossover
@@ -189,7 +189,7 @@ class TestRSIEMAStrategy:
         rows[-1]["rsi"] = 42.0
         rows[-1]["close"] = 2012.0
         rows[-1]["vwap"] = 2005.0
-        rows[-1]["adx"] = 12.0  # Below ADX_RANGING threshold
+        rows[-1]["adx"] = 8.0  # Below new ADX floor of 10
 
         df = _make_df(rows)
         result = strat.analyze(df, "INFY")
@@ -255,8 +255,8 @@ class TestVWAPSupertrendStrategy:
         result = strat.analyze(df, "RELIANCE")
         assert result.signal == Signal.BUY
 
-    def test_vwap_supertrend_ranging_filter(self):
-        """RANGING regime with ENABLE_REGIME_DETECTION -> HOLD."""
+    def test_vwap_supertrend_ranging_no_longer_blocked(self):
+        """RANGING regime no longer hard-blocks VWAP+ST (regime tracker handles weighting)."""
         strat = VWAPSupertrendStrategy()
         n = 8
         closes = [2500 + i for i in range(n)]
@@ -271,7 +271,7 @@ class TestVWAPSupertrendStrategy:
         try:
             settings.ENABLE_REGIME_DETECTION = True
             result = strat.analyze(df, "INFY", regime=MarketRegime.RANGING)
-            assert result.signal == Signal.HOLD
-            assert "ranging" in result.reason.lower() or "Ranging" in result.reason
+            # Should no longer return HOLD just because of RANGING
+            assert result.signal != Signal.HOLD or "ranging" not in result.reason.lower()
         finally:
             settings.ENABLE_REGIME_DETECTION = original

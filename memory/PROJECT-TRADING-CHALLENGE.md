@@ -37,7 +37,7 @@ Learn intraday trading on Indian markets (NSE/BSE) using a systematic, bot-assis
 | Current paper balance | Rs 1,00,019.64 |
 | High-water mark | Rs 1,00,019.64 |
 | Max drawdown | Rs 0 |
-| Sessions completed | 1 (2026-04-24 — Rs +19.64, 3 trades closed, 2W/1L, 67% win rate) |
+| Sessions completed | 2 (2026-04-24 — Rs +19.64, 3 trades closed, 2W/1L, 67% win rate; 2026-04-27 — Rs 0, 0 trades, infra issues) |
 
 ## Emotional Check-In Prompts
 
