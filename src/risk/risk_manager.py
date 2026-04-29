@@ -591,13 +591,27 @@ class RiskManager:
         if pnl < 0:
             self._consecutive_losses += 1
             if self._consecutive_losses >= settings.MAX_CONSECUTIVE_LOSSES:
-                self._paused_until = settings.now_ist() + timedelta(
-                    minutes=settings.PAUSE_AFTER_LOSSES_MINUTES
+                now = settings.now_ist()
+                stop_time = now.replace(
+                    hour=int(settings.STOP_NEW_TRADES.split(":")[0]),
+                    minute=int(settings.STOP_NEW_TRADES.split(":")[1]),
+                    second=0, microsecond=0,
                 )
-                logger.warning(
-                    f"[RISK] {self._consecutive_losses} consecutive losses! "
-                    f"Pausing for {settings.PAUSE_AFTER_LOSSES_MINUTES} minutes"
-                )
+                mins_remaining = (stop_time - now).total_seconds() / 60
+
+                if mins_remaining < 45:
+                    logger.warning(
+                        f"[RISK] {self._consecutive_losses} consecutive losses! "
+                        f"Skipping pause — only {mins_remaining:.0f} mins left in session"
+                    )
+                else:
+                    self._paused_until = now + timedelta(
+                        minutes=settings.PAUSE_AFTER_LOSSES_MINUTES
+                    )
+                    logger.warning(
+                        f"[RISK] {self._consecutive_losses} consecutive losses! "
+                        f"Pausing for {settings.PAUSE_AFTER_LOSSES_MINUTES} minutes"
+                    )
         else:
             self._consecutive_losses = 0
             self._paused_until = None

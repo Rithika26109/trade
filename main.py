@@ -413,14 +413,26 @@ class TradingBot:
 
             # Check if we should stop trading
             stop_time = self._parse_time(settings.STOP_NEW_TRADES)
-            if now >= stop_time:
+            square_off_time = self._parse_time(settings.FORCE_SQUARE_OFF)
+            loop_start = time.time()
+
+            if now >= square_off_time:
                 logger.info(
-                    f"Trading window closed (now={now.strftime('%H:%M:%S')} "
-                    f">= stop={stop_time.strftime('%H:%M:%S')})"
+                    f"Square-off time reached (now={now.strftime('%H:%M:%S')} "
+                    f">= {settings.FORCE_SQUARE_OFF})"
                 )
                 break
-
-            loop_start = time.time()
+            if now >= stop_time:
+                # Wind-down phase: no new trades, but keep managing open positions
+                if self.position_manager.get_position_count() == 0:
+                    logger.info("Trading window closed, no open positions — ending.")
+                    break
+                self._run_wind_down_cycle()
+                elapsed = time.time() - loop_start
+                sleep_time = max(0, interval_seconds - elapsed)
+                if sleep_time > 0 and self.running:
+                    time.sleep(sleep_time)
+                continue
 
             try:
                 self._run_single_cycle()
@@ -452,6 +464,45 @@ class TradingBot:
             sleep_time = max(0, interval_seconds - elapsed)
             if sleep_time > 0 and self.running:
                 time.sleep(sleep_time)
+
+    def _run_wind_down_cycle(self):
+        """Wind-down phase: manage existing positions (trailing stops, exits) but no new trades."""
+        current_prices = {}
+        if self.market_data:
+            try:
+                current_prices = self.market_data.get_ltp(self.todays_watchlist)
+            except Exception as e:
+                logger.error(f"[WIND-DOWN] Error fetching prices: {e}")
+                return
+
+        # Check exits (stop-loss / target / trailing)
+        self.position_manager.check_exits(current_prices)
+
+        # Log any closed trades
+        for order in self.order_manager.orders:
+            if not order.is_open and order.order_id not in self._logged_order_ids:
+                self.db.log_trade(order)
+                self.risk_manager.record_trade_result(order.pnl)
+                self.risk_manager.update_capital(self.risk_manager.capital + order.pnl)
+                tracker = getattr(self, "_regime_perf_tracker", None)
+                if tracker is not None:
+                    dir_key = self._last_dir_regime.get(order.symbol, "UNKNOWN")
+                    vol_key = self._last_vol_regime.get(order.symbol, "NORMAL")
+                    tracker.record(order.strategy, dir_key, vol_key, order.pnl)
+                self._logged_order_ids.add(order.order_id)
+
+        # Update P&L tracking
+        unrealized = self.position_manager.get_unrealized_pnl(current_prices)
+        realized = self.order_manager.get_todays_pnl()
+        self.risk_manager.set_unrealized_pnl(unrealized)
+        self.risk_manager.update_intraday_equity(realized, unrealized)
+
+        positions = self.position_manager.get_position_count()
+        logger.info(
+            f"[WIND-DOWN] Open: {positions} | "
+            f"Realized P&L: Rs {realized:+.2f} | "
+            f"Unrealized: Rs {unrealized:+.2f}"
+        )
 
     def _run_single_cycle(self):
         """Execute one cycle of the trading loop with multi-TF analysis and regime detection."""

@@ -66,15 +66,15 @@ CATCH_UP_CANDLES = 4
 
 # ── Risk Management ──
 INITIAL_CAPITAL = 100000  # Starting capital in Rs (used for paper trading)
-RISK_PER_TRADE_PCT = 0.5  # Max 0.5% of capital risked per trade (was 1% — too aggressive with no proven edge)
-MAX_DAILY_LOSS_PCT = 2.0  # Stop trading after 2% daily loss (tighter while developing)
-MAX_TRADES_PER_DAY = 4  # Maximum number of trades in a day (was 7 — fewer, better trades)
-MAX_OPEN_POSITIONS = 2  # Maximum concurrent open positions (was 4 — reduces correlation risk)
+RISK_PER_TRADE_PCT = 1.0  # Max 1% risk per trade (paper testing; tighten to 0.5% for live)
+MAX_DAILY_LOSS_PCT = 3.0  # Stop trading after 3% daily loss (paper testing; tighten to 2% for live)
+MAX_TRADES_PER_DAY = 7  # Max trades per day (paper testing; tighten to 4-5 for live)
+MAX_OPEN_POSITIONS = 4  # Max concurrent positions (paper testing; tighten to 2-3 for live)
 MIN_RISK_REWARD_RATIO = 1.2  # Minimum 1:1.2 risk/reward (net of costs)
 TARGET_RISK_REWARD_RATIO = 2.0  # Target R:R for setting profit targets (must be > MIN to survive cost deduction)
 MAX_POSITION_PCT = 30.0  # Max 30% of capital in a single position
 MAX_CONSECUTIVE_LOSSES = 3  # Pause after 3 consecutive losses
-PAUSE_AFTER_LOSSES_MINUTES = 30  # Pause duration after consecutive losses
+PAUSE_AFTER_LOSSES_MINUTES = 10  # Pause duration after consecutive losses
 
 # ── Stop-Loss Settings ──
 STOP_LOSS_TYPE = "TRAILING"  # Options: "FIXED", "ATR", "TRAILING"
