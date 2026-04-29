@@ -113,8 +113,11 @@ class PositionManager:
                     if self.db:
                         try:
                             self.db.remove_open_position(pos.order_id)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.error(
+                                f"[POS] Failed to remove WebSocket-exited position "
+                                f"{pos.symbol} from DB: {e} — may ghost on restart"
+                            )
                     break
 
     def _check_partial_exit(self, pos: Order, current_price: float) -> tuple[str, int] | None:
@@ -226,8 +229,8 @@ class PositionManager:
             now_time = settings.now_ist().time()
             mid_session = now_time >= _MID_SESSION_TIME
             late_session = now_time >= _LATE_SESSION_TIME
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"[POS] Time check for session phase failed: {e}")
 
         if pos.signal == Signal.BUY:
             profit = current_price - pos.executed_price

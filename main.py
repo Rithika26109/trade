@@ -410,7 +410,10 @@ class TradingBot:
             # Check if we should stop trading
             stop_time = self._parse_time(settings.STOP_NEW_TRADES)
             if now >= stop_time:
-                logger.info("Trading window closed")
+                logger.info(
+                    f"Trading window closed (now={now.strftime('%H:%M:%S')} "
+                    f">= stop={stop_time.strftime('%H:%M:%S')})"
+                )
                 break
 
             loop_start = time.time()
@@ -461,6 +464,8 @@ class TradingBot:
         self.position_manager.check_exits(current_prices)
 
         # ── Log closed trades + update capital ──
+        # (JSONL exit event is now emitted inside order_manager.close_position
+        #  so it's never lost even if the bot crashes between close and here.)
         for order in self.order_manager.orders:
             if not order.is_open and order.order_id not in self._logged_order_ids:
                 self.db.log_trade(order)
@@ -472,17 +477,6 @@ class TradingBot:
                     dir_key = self._last_dir_regime.get(order.symbol, "UNKNOWN")
                     vol_key = self._last_vol_regime.get(order.symbol, "NORMAL")
                     tracker.record(order.strategy, dir_key, vol_key, order.pnl)
-                journal.emit_event(
-                    "exit",
-                    symbol=order.symbol,
-                    signal=order.signal.value,
-                    strategy=order.strategy,
-                    entry_price=order.executed_price,
-                    exit_price=order.exit_price,
-                    quantity=order.quantity,
-                    pnl=order.pnl,
-                    reason=getattr(order, "exit_reason", None) or order.reason,
-                )
                 self._logged_order_ids.add(order.order_id)
 
         # ── Update unrealized P&L and intraday drawdown tracking ──
@@ -639,8 +633,16 @@ class TradingBot:
 
     def _end_of_day(self):
         """End of day: square off all positions, generate report."""
+        now = settings.now_ist()
+        stop_time = self._parse_time(settings.STOP_NEW_TRADES)
+        if now < stop_time and not self._shutting_down:
+            logger.error(
+                f"[BUG] _end_of_day called at {now.strftime('%H:%M:%S')} — "
+                f"before STOP_NEW_TRADES ({settings.STOP_NEW_TRADES}). "
+                f"Possible premature EOD. Investigate process signals."
+            )
         logger.info("=" * 40)
-        logger.info("  END OF DAY")
+        logger.info(f"  END OF DAY ({now.strftime('%H:%M:%S')} IST)")
         logger.info("=" * 40)
 
         # ── Force close all open positions ──
@@ -655,22 +657,12 @@ class TradingBot:
             self.position_manager.force_close_all(current_prices, "End of day square-off")
 
         # ── Log remaining trades and clear open positions ──
+        # (JSONL exit events already emitted by close_position; only DB + risk updates here.)
         for order in self.order_manager.orders:
             if not order.is_open and order.order_id not in self._logged_order_ids:
                 self.db.log_trade(order)
                 self.risk_manager.record_trade_result(order.pnl)
                 self.risk_manager.update_capital(self.risk_manager.capital + order.pnl)
-                journal.emit_event(
-                    "exit",
-                    symbol=order.symbol,
-                    signal=order.signal.value,
-                    strategy=order.strategy,
-                    entry_price=order.executed_price,
-                    exit_price=order.exit_price,
-                    quantity=order.quantity,
-                    pnl=order.pnl,
-                    reason="End of day square-off",
-                )
                 self._logged_order_ids.add(order.order_id)
             elif order.is_open and order.order_id not in self._logged_order_ids:
                 logger.error(

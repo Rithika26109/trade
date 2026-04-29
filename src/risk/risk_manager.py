@@ -73,8 +73,11 @@ class RiskManager:
                         f"HWM={self._intraday_high_water_mark:.2f}, "
                         f"DD={self._intraday_drawdown:.2f}"
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(
+                    f"[RISK] Failed to restore persisted risk state: {e} — "
+                    f"drawdown circuit breaker starts from zero"
+                )
 
     # ── Runtime-override accessors (daily-plan driven) ──────────────────
 
@@ -176,7 +179,8 @@ class RiskManager:
             band = None
             try:
                 band = self.market_data.get_circuit_limits(signal.symbol)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"[RISK] Circuit limit check failed for {signal.symbol}: {e}")
                 band = None
             if band:
                 lo, hi = band["lower"], band["upper"]
@@ -385,8 +389,8 @@ class RiskManager:
             try:
                 db_trades = self.db.get_closed_trades(limit=500)
                 pnls.extend(t["pnl"] for t in db_trades if t.get("pnl", 0) != 0)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"[RISK] Kelly DB history load failed: {e} — using session-only data")
 
         if len(pnls) < min_trades:
             return 1.0
@@ -439,7 +443,8 @@ class RiskManager:
                 return getattr(settings, 'EQUITY_CURVE_DRAWDOWN_SCALE', 0.5)
 
             return 1.0
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[RISK] Equity curve calculation failed: {e} — using 1.0x sizing")
             return 1.0
 
     def _get_time_multiplier(self) -> float:
@@ -485,15 +490,19 @@ class RiskManager:
                     drawdown=self._intraday_drawdown,
                     daily_loss=min(0.0, total_pnl),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(
+                    f"[RISK] Failed to persist risk state (HWM/drawdown): {e} — "
+                    f"circuit breaker will reset on next restart"
+                )
 
     # ── Phase 3E helpers ──
     def _net_rr(self, signal: TradeSignal) -> float:
         """Risk:reward net of round-trip costs (brokerage+STT+slippage proxy)."""
         try:
             gross = signal.risk_reward_ratio
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[RISK] net R:R calc failed for {signal.symbol}: {e}")
             return 0.0
         costs_bps = getattr(settings, "COSTS_ROUND_TRIP_BPS", 0)
         if costs_bps <= 0 or signal.price <= 0:

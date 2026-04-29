@@ -47,7 +47,7 @@ ATR_MULTIPLIER = 2.0  # For stop-loss calculation
 SUPERTREND_PERIOD = 10
 SUPERTREND_MULTIPLIER = 3.0
 VWAP_ENABLED = True
-SUPERTREND_CONFIRMATION_CANDLES = 1  # Candles to confirm Supertrend flip
+SUPERTREND_CONFIRMATION_CANDLES = 2  # Candles to confirm Supertrend flip (1 was too noisy in ranging)
 
 # ── RSI Strategy Ranges ──
 RSI_BUY_MIN = 30  # Buy when RSI recovering from oversold
@@ -66,10 +66,10 @@ CATCH_UP_CANDLES = 4
 
 # ── Risk Management ──
 INITIAL_CAPITAL = 100000  # Starting capital in Rs (used for paper trading)
-RISK_PER_TRADE_PCT = 1.0  # Max 1% of capital risked per trade
-MAX_DAILY_LOSS_PCT = 3.0  # Stop trading after 3% daily loss
-MAX_TRADES_PER_DAY = 7  # Maximum number of trades in a day
-MAX_OPEN_POSITIONS = 4  # Maximum concurrent open positions
+RISK_PER_TRADE_PCT = 0.5  # Max 0.5% of capital risked per trade (was 1% — too aggressive with no proven edge)
+MAX_DAILY_LOSS_PCT = 2.0  # Stop trading after 2% daily loss (tighter while developing)
+MAX_TRADES_PER_DAY = 4  # Maximum number of trades in a day (was 7 — fewer, better trades)
+MAX_OPEN_POSITIONS = 2  # Maximum concurrent open positions (was 4 — reduces correlation risk)
 MIN_RISK_REWARD_RATIO = 1.2  # Minimum 1:1.2 risk/reward (net of costs)
 TARGET_RISK_REWARD_RATIO = 2.0  # Target R:R for setting profit targets (must be > MIN to survive cost deduction)
 MAX_POSITION_PCT = 30.0  # Max 30% of capital in a single position
@@ -92,7 +92,7 @@ ADX_RANGING = 15  # ADX below this = ranging/choppy
 
 # ── Confluence Scoring ──
 ENABLE_CONFLUENCE_SCORING = True
-CONFLUENCE_THRESHOLD = 25  # Minimum score (0-100) to take a trade
+CONFLUENCE_THRESHOLD = 45  # Minimum score (0-100) to take a trade (25 let weak setups through)
 
 # ── Volatility (VIX) Scaling ──
 VOLATILITY_SCALING_ENABLED = True
@@ -102,7 +102,7 @@ VIX_EXTREME = 25.0  # Above this: extreme → 0.3x size
 
 # ── Performance-Adaptive Sizing (Kelly Criterion) ──
 KELLY_ENABLED = True
-KELLY_MIN_TRADES = 20  # Minimum trades before Kelly activates
+KELLY_MIN_TRADES = 100  # Minimum trades before Kelly activates (20 was noise amplification)
 
 # ── Equity Curve Trading ──
 EQUITY_CURVE_TRADING_ENABLED = True
@@ -133,19 +133,19 @@ BACKTEST_SLIPPAGE_PCT = 0.05  # 0.05% slippage per trade leg in backtests
 # All toggles default to False — existing paper behavior is unchanged unless opted in.
 
 # Order rejection simulation (margin, circuit, random exchange glitches)
-PAPER_SIMULATE_REJECTIONS = False
+PAPER_SIMULATE_REJECTIONS = True
 PAPER_RANDOM_REJECTION_PCT = 1.5        # % chance of random exchange rejection
 PAPER_MARGIN_CHECK = True               # reject if notional > available capital
 
 # Partial fill simulation
-PAPER_SIMULATE_PARTIAL_FILLS = False
+PAPER_SIMULATE_PARTIAL_FILLS = True
 PAPER_PARTIAL_FILL_PROB = 0.15          # 15% of orders get partial fills
 PAPER_PARTIAL_FILL_MIN_PCT = 60         # minimum fill %; below this → reject
 PAPER_PARTIAL_FILL_MAX_PCT = 90         # maximum partial fill %
 PAPER_PARTIAL_FILL_VOLUME_FACTOR = True # worse fills for large orders vs avg volume
 
 # Dynamic slippage (replaces fixed PAPER_SLIPPAGE_PCT when enabled)
-PAPER_DYNAMIC_SLIPPAGE = False
+PAPER_DYNAMIC_SLIPPAGE = True
 PAPER_BASE_SLIPPAGE_PCT = 0.03          # base slippage for liquid NIFTY 50 stocks
 PAPER_SLIPPAGE_VOLATILITY_MULT = True   # scale by ATR%
 PAPER_SLIPPAGE_TIME_MULT = True         # wider spreads at open/close
@@ -154,8 +154,8 @@ PAPER_SLIPPAGE_MAX_PCT = 0.50           # hard cap on slippage %
 
 # ── Mean-Reversion Strategy ──
 MEAN_REV_ADX_MAX = 20                   # Only activate below this ADX (ranging market)
-MEAN_REV_RSI_OVERSOLD = 40              # Buy below this RSI (relaxed for ranging)
-MEAN_REV_RSI_OVERBOUGHT = 60            # Sell above this RSI (relaxed for ranging)
+MEAN_REV_RSI_OVERSOLD = 35              # Buy below this RSI (tighter to avoid noise entries)
+MEAN_REV_RSI_OVERBOUGHT = 65            # Sell above this RSI (tighter to avoid noise entries)
 MEAN_REV_MIN_BB_WIDTH_PCT = 0.5         # Skip if BB bandwidth < this % (squeeze)
 MEAN_REV_MAX_VOL_Z = 2.0               # Skip if volume z-score > this (breakout)
 

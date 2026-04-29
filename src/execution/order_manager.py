@@ -17,6 +17,7 @@ from kiteconnect import KiteConnect
 from config import settings
 from src.strategy.base import Signal, TradeSignal
 from src.utils.audit import audit
+from src.utils.journal import emit_event as journal_emit
 from src.utils.logger import logger
 from src.utils import kill_switch
 from src.utils.rate_limiter import RateLimiter
@@ -475,9 +476,23 @@ class OrderManager:
                 paper=False,
             )
 
-            # Place stop-loss order and store its id on the parent order
+            # Place stop-loss order and store its id on the parent order.
+            # CRITICAL: if SLM fails in live mode, close the position
+            # immediately — never hold a position without a broker-side stop.
             sl_id = self._place_stop_loss(order, exchange)
             order.sl_order_id = sl_id
+
+            if sl_id is None and not self.is_paper:
+                logger.error(
+                    f"SAFETY: SLM failed for {order.symbol} — closing position immediately"
+                )
+                self._close_live_position(order, actual_price, "SLM placement failed — emergency close")
+                audit(
+                    "slm_emergency_close",
+                    order_id=order.order_id,
+                    symbol=order.symbol,
+                )
+                return None
 
             return order
 
@@ -643,6 +658,7 @@ class OrderManager:
     def _close_paper_position(self, order: Order, exit_price: float, reason: str):
         """Close a paper position and calculate P&L."""
         order.exit_price = exit_price
+        order.exit_reason = reason
         if order.signal == Signal.BUY:
             order.pnl = (exit_price - order.executed_price) * order.quantity
         else:
@@ -663,6 +679,18 @@ class OrderManager:
             pnl=order.pnl,
             reason=reason,
             paper=True,
+        )
+        # Emit JSONL event immediately so it's never missed (even on crash)
+        journal_emit(
+            "exit",
+            symbol=order.symbol,
+            signal=order.signal.value,
+            strategy=order.strategy,
+            entry_price=order.executed_price,
+            exit_price=exit_price,
+            quantity=order.quantity,
+            pnl=order.pnl,
+            reason=reason,
         )
 
     def _close_live_position(self, order: Order, exit_price: float, reason: str):
@@ -716,16 +744,27 @@ class OrderManager:
                 logger.error(f"Failed to close {order.symbol} after {order.quantity} units!")
                 return
 
-            order.exit_price = exit_price
+            # Verify fill to get actual exit price (not just intended LTP)
+            fill = self._verify_order(str(close_id))
+            confirmed_exit = fill["price"] if fill else exit_price
+            if fill and confirmed_exit != exit_price:
+                logger.info(
+                    f"[LIVE] Exit slippage on {order.symbol}: "
+                    f"intended={exit_price:.2f} filled={confirmed_exit:.2f} "
+                    f"({(confirmed_exit - exit_price) / exit_price * 100:+.3f}%)"
+                )
+
+            order.exit_price = confirmed_exit
+            order.exit_reason = reason
             if order.signal == Signal.BUY:
-                order.pnl = (exit_price - order.executed_price) * order.quantity
+                order.pnl = (confirmed_exit - order.executed_price) * order.quantity
             else:
-                order.pnl = (order.executed_price - exit_price) * order.quantity
+                order.pnl = (order.executed_price - confirmed_exit) * order.quantity
 
             order.is_open = False
             logger.info(
                 f"[LIVE] CLOSED {order.symbol} | "
-                f"Entry: {order.executed_price:.2f} | Exit: {exit_price:.2f} | "
+                f"Entry: {order.executed_price:.2f} | Exit: {confirmed_exit:.2f} | "
                 f"P&L: Rs {order.pnl:.2f} | {reason}"
             )
             audit(
@@ -733,47 +772,39 @@ class OrderManager:
                 order_id=order.order_id,
                 close_order_id=str(close_id),
                 symbol=order.symbol,
-                exit_price=exit_price,
+                exit_price=confirmed_exit,
                 pnl=order.pnl,
                 reason=reason,
                 paper=False,
+            )
+            # Emit JSONL event immediately so it's never missed (even on crash)
+            journal_emit(
+                "exit",
+                symbol=order.symbol,
+                signal=order.signal.value,
+                strategy=order.strategy,
+                entry_price=order.executed_price,
+                exit_price=confirmed_exit,
+                quantity=order.quantity,
+                pnl=order.pnl,
+                reason=reason,
             )
         except Exception as e:
             logger.error(f"Failed to close position for {order.symbol}: {e}")
 
     def partial_close(self, order: Order, exit_price: float, quantity: int, reason: str):
-        """Close a partial quantity of an open position."""
+        """Close a partial quantity of an open position.
+
+        IMPORTANT: In live mode, the broker order is placed and verified BEFORE
+        mutating in-memory state. This prevents book drift if the broker rejects.
+        """
         if quantity <= 0 or quantity > order.quantity:
             return
 
-        # Calculate P&L for the partial close
-        if order.signal == Signal.BUY:
-            partial_pnl = (exit_price - order.executed_price) * quantity
-        else:
-            partial_pnl = (order.executed_price - exit_price) * quantity
+        confirmed_exit = exit_price
 
-        # Record partial exit
-        order.partial_exits.append((exit_price, quantity, reason))
-        order.pnl += partial_pnl
-        order.quantity -= quantity
-
-        # If fully closed
-        if order.quantity <= 0:
-            order.exit_price = exit_price
-            order.is_open = False
-
-        mode = "PAPER" if order.is_paper else "LIVE"
-        logger.info(
-            f"[{mode}] PARTIAL CLOSE {order.symbol} | "
-            f"Qty: {quantity} @ {exit_price:.2f} | "
-            f"P&L: Rs {partial_pnl:+.2f} | Remaining: {order.quantity} | {reason}"
-        )
-
-        if self.is_paper:
-            return  # Paper mode: just update in-memory
-
-        # Live mode: place partial exit order on Zerodha, then resize SLM
-        if self.kite:
+        # Live mode: broker call FIRST, then mutate state only on success
+        if not self.is_paper and self.kite:
             try:
                 close_transaction = (
                     self.kite.TRANSACTION_TYPE_SELL
@@ -792,16 +823,51 @@ class OrderManager:
                 )
                 if tag:
                     kwargs["tag"] = tag
-                self._broker_call(
+                partial_id = self._broker_call(
                     f"partial_close({order.symbol} qty={quantity})",
                     lambda: self.kite.place_order(**kwargs),
                 )
+                if partial_id is None:
+                    logger.error(
+                        f"Partial close REJECTED by broker for {order.symbol} "
+                        f"qty={quantity} — internal state NOT mutated"
+                    )
+                    return
+                # Verify fill to get actual price
+                fill = self._verify_order(str(partial_id))
+                if fill:
+                    confirmed_exit = fill["price"]
             except Exception as e:
-                logger.error(f"Partial close order failed for {order.symbol}: {e}")
+                logger.error(
+                    f"Partial close order failed for {order.symbol}: {e} "
+                    f"— internal state NOT mutated"
+                )
                 return
 
-            # Resize the standing SLM to the remaining quantity, OR cancel
-            # it if the position is now fully closed.
+        # Broker confirmed (or paper mode) — now safe to mutate state
+        if order.signal == Signal.BUY:
+            partial_pnl = (confirmed_exit - order.executed_price) * quantity
+        else:
+            partial_pnl = (order.executed_price - confirmed_exit) * quantity
+
+        order.partial_exits.append((confirmed_exit, quantity, reason))
+        order.pnl += partial_pnl
+        order.quantity -= quantity
+
+        if order.quantity <= 0:
+            order.exit_price = confirmed_exit
+            order.is_open = False
+
+        mode = "PAPER" if order.is_paper else "LIVE"
+        logger.info(
+            f"[{mode}] PARTIAL CLOSE {order.symbol} | "
+            f"Qty: {quantity} @ {confirmed_exit:.2f} | "
+            f"P&L: Rs {partial_pnl:+.2f} | Remaining: {order.quantity} | {reason}"
+        )
+
+        # Live mode: resize the standing SLM to the remaining quantity,
+        # or cancel it if the position is now fully closed.
+        if not self.is_paper and self.kite:
             if order.quantity <= 0:
                 self._cancel_slm(order)
             else:

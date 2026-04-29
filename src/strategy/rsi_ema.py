@@ -95,6 +95,9 @@ class RSIEMAStrategy(BaseStrategy):
 
         # ── BUY SIGNAL ──
         if crossover == "BULLISH" or divergence == "BULLISH":
+            # Hard guard: never buy when RSI is overbought (reversal risk)
+            if rsi > 70:
+                return self._hold(symbol, f"RSI {rsi:.1f} > 70 — overbought, skip BUY")
             rsi_ok = rsi_ranges["buy_min"] <= rsi <= rsi_ranges["buy_max"]
             vwap_ok = (close > vwap) if vwap else True
 
@@ -144,6 +147,9 @@ class RSIEMAStrategy(BaseStrategy):
 
         # ── SELL SIGNAL ──
         if crossover == "BEARISH" or divergence == "BEARISH":
+            # Hard guard: never short when RSI is oversold (bounce risk)
+            if rsi < 30:
+                return self._hold(symbol, f"RSI {rsi:.1f} < 30 — oversold, skip SELL")
             rsi_ok = rsi_ranges["sell_min"] <= rsi <= rsi_ranges["sell_max"]
             vwap_ok = (close < vwap) if vwap else True
 
