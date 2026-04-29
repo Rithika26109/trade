@@ -19,6 +19,20 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 <!-- Daily summaries will be prepended here by /daily-summary and /market-open commands -->
 
+## 2026-04-29 (Wednesday) — Opening
+- NIFTY open: ~24,026 (GIFT Nifty pre-open: +31 pts from 23,995; slight gap-up ~+0.13%)
+- Key gaps: INFY -0.65%, TATAPOWER +0.18%, ADANIENT flat, ICICIBANK flat, TCS -0.15%
+- Bot status: RUNNING (launched 09:05, ORB range collecting 9:15-9:30, 5 stocks selected)
+- Watchlist: INFY (score 3.50, caution on guidance), ADANIENT (2.60, long bias), TCS (2.60, watch), ICICIBANK (2.43, caution), TATAPOWER (2.40, long bias)
+- Regime: TREND_DOWN (prior sessions) | Quote API: Bad Request (enctoken — non-blocking)
+
+## 2026-04-28 (Tuesday) — EOD
+- Regime: RANGING | VIX: 18.03 (NORMAL, unavailable at open)
+- Trades: 0 | Wins: 0 | Losses: 0 | Win Rate: N/A
+- P&L: Rs 0.00 (paper capital intact at Rs 1,00,000)
+- Key trades: None — all signals rejected (BHARTIARTL R:R 0.61-0.82; HDFCBANK R:R 0.95-1.18; ICICIBANK R:R 0.96; TCS R:R 1.28; BHARTIARTL confluence 34 < 40)
+- Notes: Clean ranging day. ORB ranges were tight (ICICIBANK 0.43%, BHARTIARTL 0.76%). Strategies generated signals but R:R consistently sub-1.5 — risk filter correctly blocked all entries. Bot ran on time (09:05-15:00), no premature EOD. Spurious second launch at 15:05 (market already closed — investigate launchd).
+
 ## 2026-04-28 (Tuesday) — Opening
 - NIFTY open: ~gap-down ~0.3% (SGX Nifty 24,043 vs prior close 24,119); STRONG_TREND_DOWN regime
 - Key gaps: SGX Nifty -0.32%. INFY caution (weak FY27 guidance), TCS positive (AI partnership). RELIANCE avoided (score low, negative gap -1.11%)

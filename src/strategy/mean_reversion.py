@@ -96,7 +96,7 @@ class MeanReversionStrategy(BaseStrategy):
         if close <= bb_lower and rsi < rsi_oversold:
             stop_loss = close - (settings.ATR_MULTIPLIER * atr)
             risk = close - stop_loss
-            min_rr_target = close + (risk * settings.MIN_RISK_REWARD_RATIO)
+            min_rr_target = close + (risk * settings.TARGET_RISK_REWARD_RATIO)
             target = max(bb_middle, min_rr_target)
 
             reason = (
@@ -119,7 +119,7 @@ class MeanReversionStrategy(BaseStrategy):
         elif close >= bb_upper and rsi > rsi_overbought:
             stop_loss = close + (settings.ATR_MULTIPLIER * atr)
             risk = stop_loss - close
-            min_rr_target = close - (risk * settings.MIN_RISK_REWARD_RATIO)
+            min_rr_target = close - (risk * settings.TARGET_RISK_REWARD_RATIO)
             target = min(bb_middle, min_rr_target)
 
             reason = (

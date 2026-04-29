@@ -22,6 +22,11 @@ from src.utils.logger import logger
 class RSIEMAStrategy(BaseStrategy):
     """RSI + EMA Crossover strategy with professional filters."""
 
+    def __init__(self):
+        # One-shot guard: trend continuation fires once per symbol per day.
+        self._continuation_traded: set[str] = set()
+        self._continuation_date = None
+
     @property
     def name(self) -> str:
         return "RSI_EMA"
@@ -70,10 +75,6 @@ class RSIEMAStrategy(BaseStrategy):
         # ── Check for RSI divergence (stronger signal) ──
         divergence = self._detect_rsi_divergence(df)
 
-            # NOTE: alignment_buy/sell removed — it fired on mere EMA alignment
-        # with RSI ticking by 1 point, causing whipsaw entries in choppy
-        # markets.  Entry now requires an actual crossover or divergence.
-
         # ── HTF trend confirmation ──
         htf_aligned = True
         htf_info = ""
@@ -107,7 +108,7 @@ class RSIEMAStrategy(BaseStrategy):
             if rsi_ok and vwap_ok:
                 stop_loss = close - (settings.ATR_MULTIPLIER * atr)
                 risk = close - stop_loss
-                target = close + (risk * settings.MIN_RISK_REWARD_RATIO)
+                target = close + (risk * settings.TARGET_RISK_REWARD_RATIO)
 
                 reason_parts = []
                 if crossover == "BULLISH":
@@ -155,7 +156,7 @@ class RSIEMAStrategy(BaseStrategy):
             if rsi_ok and vwap_ok:
                 stop_loss = close + (settings.ATR_MULTIPLIER * atr)
                 risk = stop_loss - close
-                target = close - (risk * settings.MIN_RISK_REWARD_RATIO)
+                target = close - (risk * settings.TARGET_RISK_REWARD_RATIO)
 
                 reason_parts = []
                 if crossover == "BEARISH":
@@ -186,6 +187,98 @@ class RSIEMAStrategy(BaseStrategy):
                     signal.confluence_details = conf.components
 
                 return signal
+
+        # ── TREND CONTINUATION (alignment without fresh crossover) ──
+        # Fires when EMAs are aligned, regime is trending, ADX confirms,
+        # and VWAP agrees. One-shot per symbol per day to avoid repeated entries.
+        if crossover is None and divergence is None and regime is not None:
+            # Reset daily guard
+            today = settings.now_ist().date()
+            if self._continuation_date != today:
+                self._continuation_traded.clear()
+                self._continuation_date = today
+
+            if symbol not in self._continuation_traded:
+                adx_val = df["adx"].iloc[-1] if "adx" in df.columns else None
+                in_trend = adx_val is not None and not pd.isna(adx_val) and adx_val > 20
+                fast = df["ema_fast"].iloc[-1]
+                slow = df["ema_slow"].iloc[-1]
+                vwap_ok_buy = (close > vwap) if vwap else True
+                vwap_ok_sell = (close < vwap) if vwap else True
+
+                if (in_trend
+                        and regime in (MarketRegime.TREND_UP, MarketRegime.STRONG_TREND_UP)
+                        and fast > slow
+                        and rsi_ranges["buy_min"] <= rsi <= rsi_ranges["buy_max"]
+                        and vwap_ok_buy):
+                    stop_loss = close - (settings.ATR_MULTIPLIER * atr)
+                    risk = close - stop_loss
+                    target = close + (risk * settings.TARGET_RISK_REWARD_RATIO)
+
+                    reason_parts = [
+                        "Trend continuation (EMA aligned)",
+                        f"ADX={adx_val:.1f}",
+                        f"RSI={rsi:.1f}",
+                    ]
+                    if vwap:
+                        reason_parts.append(f"above VWAP={vwap:.2f}")
+                    reason_parts.append(f"regime={regime.value}")
+
+                    signal = TradeSignal(
+                        signal=Signal.BUY,
+                        symbol=symbol,
+                        price=close,
+                        stop_loss=stop_loss,
+                        target=target,
+                        reason=" | ".join(reason_parts),
+                        strategy=self.name,
+                        rsi=rsi,
+                        entry_atr=atr,
+                    )
+                    if getattr(settings, 'ENABLE_CONFLUENCE_SCORING', False):
+                        conf = calculate_confluence(Signal.BUY, df, df_htf, regime)
+                        signal.confluence_score = conf.total
+                        signal.confluence_details = conf.components
+
+                    self._continuation_traded.add(symbol)
+                    return signal
+
+                elif (in_trend
+                        and regime in (MarketRegime.TREND_DOWN, MarketRegime.STRONG_TREND_DOWN)
+                        and fast < slow
+                        and rsi_ranges["sell_min"] <= rsi <= rsi_ranges["sell_max"]
+                        and vwap_ok_sell):
+                    stop_loss = close + (settings.ATR_MULTIPLIER * atr)
+                    risk = stop_loss - close
+                    target = close - (risk * settings.TARGET_RISK_REWARD_RATIO)
+
+                    reason_parts = [
+                        "Trend continuation (EMA aligned)",
+                        f"ADX={adx_val:.1f}",
+                        f"RSI={rsi:.1f}",
+                    ]
+                    if vwap:
+                        reason_parts.append(f"below VWAP={vwap:.2f}")
+                    reason_parts.append(f"regime={regime.value}")
+
+                    signal = TradeSignal(
+                        signal=Signal.SELL,
+                        symbol=symbol,
+                        price=close,
+                        stop_loss=stop_loss,
+                        target=target,
+                        reason=" | ".join(reason_parts),
+                        strategy=self.name,
+                        rsi=rsi,
+                        entry_atr=atr,
+                    )
+                    if getattr(settings, 'ENABLE_CONFLUENCE_SCORING', False):
+                        conf = calculate_confluence(Signal.SELL, df, df_htf, regime)
+                        signal.confluence_score = conf.total
+                        signal.confluence_details = conf.components
+
+                    self._continuation_traded.add(symbol)
+                    return signal
 
         return self._hold(symbol, f"No crossover or divergence signal (RSI={rsi:.1f})")
 

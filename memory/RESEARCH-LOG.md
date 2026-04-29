@@ -44,6 +44,20 @@ _Patterns observed across multiple sessions. Updated by /weekly-review._
 
 <!-- Daily research entries will be prepended here by /pre-market command -->
 
+## 2026-04-29 Pre-Market Research
+- US overnight: SPX -0.49% (7,138.80), NDQ -0.90% (24,663.80) — tech weakness led by AI/OpenAI valuation concerns; energy/defensives strong
+- Asia: GIFT Nifty 24,098 (+31pts, +0.13% vs prior close 23,995) → slight gap-UP opening; Nikkei -1.02%, Hang Seng -0.95% (Asia broadly weak)
+- India VIX: unavailable (API) — gap size suggests NORMAL; no panic
+- NIFTY regime: TREND_DOWN, ATR 1.58%, vol regime LOW — NIFTY closed at 23,995 (-0.40% prior day), downtrend intact
+- FII/DII (Apr 28): FII sold Rs 2,103.74 cr, DII bought Rs 1,712.01 cr — net outflow Rs 391.73 cr; FII selling pressure persists
+- USD/INR: 94.52 (+0.34%) — rupee weakening; bullish for IT exporters (TCS, INFY, WIPRO)
+- Crude (Brent): $111.67 (+0.37%) — rising, elevated; bearish India macro, watch RELIANCE, BPCL, ONGC
+- Gold: $4,602 — stable, mild safe-haven demand (US-Iran, Strait of Hormuz risk)
+- Key news: No major India earnings today (clean slate). FOMC decision this week — macro uncertainty. RBI ECL provisioning finalized (Apr 2027 implementation, banking sector neutral near-term). TATAPOWER 52-week high (460), TP Urja subsidiary formed. ADANIENT — Google AI hub Vizag partnership (positive). TCS-Siemens AI MoU extended (positive). TCS court case (Nashik conversion) — hearing May 2 (minor risk). ICICIBANK: 5th straight down session despite strong Q4.
+- Sector focus: IT cautiously positive (weak rupee tailwind, but US Nasdaq -0.90% cap upside); Power sector strong (TATAPOWER breakout, summer demand outlook); Adani group positive (AI infra catalyst); Banking mixed (ICICIBANK weak near-term, RBI ECL clarity long-term positive)
+- Watchlist today: TATAPOWER (LONG bias, strong mom, 52-week high), ADANIENT (LONG bias, AI catalyst, institutional buying), INFY (watch ORB — gap -0.65%, technical buy signals but FY27 guidance overhang; wait RSI 40-60)
+- AVOID: KOTAKBANK (pre-earnings May 2-3, ongoing risk), BANKBARODA/PNB (PSU banks, RBI ECL provisioning uncertainty), TCS (court case May 2 minor overhang)
+
 ## 2026-04-28 Pre-Market Research
 - US overnight: SPX +0.12% (7,173.91), NDQ +0.20% (24,887.10) — tech-led narrow gain; DJIA -0.13% (mixed breadth)
 - Asia: SGX Nifty 24,043 (-0.32% vs 24,119 prior close) → gap-DOWN ~0.3% expected; Nikkei -0.43%, Hang Seng -0.43%

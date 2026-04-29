@@ -150,7 +150,7 @@ class ORBStrategy(BaseStrategy):
             else:
                 stop_loss = orb_low
             risk = current_close - stop_loss
-            target = current_close + (risk * settings.MIN_RISK_REWARD_RATIO)
+            target = current_close + (risk * settings.TARGET_RISK_REWARD_RATIO)
 
             reason_parts = [f"ORB breakout above {orb_high:.2f}"]
             if volume_accelerating:
@@ -202,7 +202,7 @@ class ORBStrategy(BaseStrategy):
             else:
                 stop_loss = orb_high
             risk = stop_loss - current_close
-            target = current_close - (risk * settings.MIN_RISK_REWARD_RATIO)
+            target = current_close - (risk * settings.TARGET_RISK_REWARD_RATIO)
 
             reason_parts = [f"ORB breakdown below {orb_low:.2f}"]
             if volume_accelerating:

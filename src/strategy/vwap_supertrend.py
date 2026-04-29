@@ -55,7 +55,7 @@ class VWAPSupertrendStrategy(BaseStrategy):
 
         # Get recent supertrend directions for confirmation (with catch-up window)
         catchup = getattr(settings, 'CATCH_UP_CANDLES', 0)
-        window = confirm_candles + 2 + catchup
+        window = confirm_candles + 2 + max(catchup, 6)  # At least 30 min lookback
         recent_dirs = df["supertrend_direction"].iloc[-window:].tolist()
 
         if any(pd.isna(v) for v in [vwap, st_value, atr]) or any(pd.isna(d) for d in recent_dirs):
@@ -95,7 +95,7 @@ class VWAPSupertrendStrategy(BaseStrategy):
             risk = close - stop_loss
             if risk <= 0:
                 return self._hold(symbol, "Invalid stop-loss (ST above price)")
-            target = close + (risk * settings.MIN_RISK_REWARD_RATIO)
+            target = close + (risk * settings.TARGET_RISK_REWARD_RATIO)
 
             reason_parts = [f"Supertrend bullish flip, above VWAP={vwap:.2f}"]
             if vwap_extended:
@@ -135,7 +135,7 @@ class VWAPSupertrendStrategy(BaseStrategy):
             risk = stop_loss - close
             if risk <= 0:
                 return self._hold(symbol, "Invalid stop-loss (ST below price)")
-            target = close - (risk * settings.MIN_RISK_REWARD_RATIO)
+            target = close - (risk * settings.TARGET_RISK_REWARD_RATIO)
 
             reason_parts = [f"Supertrend bearish flip, below VWAP={vwap:.2f}"]
             if vwap_extended:

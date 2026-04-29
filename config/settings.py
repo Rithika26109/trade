@@ -62,7 +62,7 @@ ORB_VOLUME_MULTIPLIER = 1.5  # Breakout volume must be >= 1.5x average
 # When the bot starts mid-session, look back this many 5-min candles
 # (2 candles = 10 minutes) to detect recent crossovers/breakouts/flips.
 # Was 6 (30 min) — chasing stale signals destroyed R:R.
-CATCH_UP_CANDLES = 2
+CATCH_UP_CANDLES = 4
 
 # ── Risk Management ──
 INITIAL_CAPITAL = 100000  # Starting capital in Rs (used for paper trading)
@@ -71,6 +71,7 @@ MAX_DAILY_LOSS_PCT = 3.0  # Stop trading after 3% daily loss
 MAX_TRADES_PER_DAY = 7  # Maximum number of trades in a day
 MAX_OPEN_POSITIONS = 4  # Maximum concurrent open positions
 MIN_RISK_REWARD_RATIO = 1.2  # Minimum 1:1.2 risk/reward (net of costs)
+TARGET_RISK_REWARD_RATIO = 2.0  # Target R:R for setting profit targets (must be > MIN to survive cost deduction)
 MAX_POSITION_PCT = 30.0  # Max 30% of capital in a single position
 MAX_CONSECUTIVE_LOSSES = 3  # Pause after 3 consecutive losses
 PAUSE_AFTER_LOSSES_MINUTES = 30  # Pause duration after consecutive losses
@@ -206,6 +207,7 @@ PRE_MARKET_LOGIN = "09:00"  # Login time before market opens
 # ── Watchlist ──
 # High-liquidity NIFTY 50 stocks ideal for intraday
 WATCHLIST = [
+    # Large-cap (NIFTY 50)
     "RELIANCE",
     "TCS",
     "HDFCBANK",
@@ -216,6 +218,17 @@ WATCHLIST = [
     "ITC",
     "KOTAKBANK",
     "LT",
+    # Mid-cap (F&O eligible, high intraday volume)
+    "TATAMOTORS",
+    "TATAPOWER",
+    "PNB",
+    "ADANIENT",
+    "BANKBARODA",
+    "INDUSINDBK",
+    "DLF",
+    "BPCL",
+    "SAIL",
+    "ZOMATO",
 ]
 
 # ── Stock Selection Filters ──
@@ -260,7 +273,7 @@ PERSIST_INTRADAY_HWM = True            # persist HWM + daily_loss across restart
 USE_ML_FILTER = False
 
 # ── Notifications ──
-TELEGRAM_ENABLED = False
+TELEGRAM_ENABLED = True
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
