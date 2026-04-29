@@ -30,6 +30,8 @@ def _make_enctoken_kite(enctoken: str) -> KiteConnect:
     """
     kite = KiteConnect(api_key=settings.KITE_API_KEY)
     kite.root = "https://kite.zerodha.com"
+    # WARNING: relies on kiteconnect internals (_routes, reqsession.headers).
+    # Tested with kiteconnect 5.1.0. Pin the version if upgrading breaks this.
     # _routes is a class-level dict — copy to avoid mutating it globally
     kite._routes = {k: "/oms" + v if not v.startswith("/oms") else v
                     for k, v in kite._routes.items()}

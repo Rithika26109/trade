@@ -31,7 +31,7 @@ pip install -r requirements.txt
 ### 2. Configure
 
 ```bash
-cp env.template .env
+cp config/.env.example config/.env
 # Fill in Kite API key/secret, Telegram token, etc.
 ```
 

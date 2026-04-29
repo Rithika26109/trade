@@ -144,7 +144,7 @@ Put that value in `STATIC_IP_EXPECTED` once you have a static IP from your ISP (
 ```bash
 chmod 600 config/.env
 ```
-The bot itself will `chmod 0600` the access-token cache (`config/.access_token`), the trade DB (`data/trades.db`), and the audit log. Never sync `config/` to cloud storage, and the Zerodha password is always prompted at runtime — it is never read from `.env` or process environment.
+The bot itself will `chmod 0600` the access-token cache (`config/.access_token`), the trade DB (`data/trades.db`), and the audit log. Never sync `config/` to cloud storage. `KITE_PASSWORD` can optionally be set in `.env` for unattended/cron runs; if not set, the bot will prompt interactively at login.
 
 ---
 

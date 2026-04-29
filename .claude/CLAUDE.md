@@ -14,7 +14,7 @@ Building an automated intraday (day trading) bot for Indian stock markets (NSE/B
 - **Auth:** pyotp (for TOTP auto-login)
 - **Config:** python-dotenv (.env for secrets)
 - **Database:** SQLite (trade logs)
-- **Notifications:** python-telegram-bot (optional)
+- **Notifications:** requests (Telegram Bot API via HTTP)
 
 ## Key Architecture Decisions
 - Modular structure: auth, data, strategy, execution, risk, scanner, utils

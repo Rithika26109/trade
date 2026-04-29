@@ -12,7 +12,7 @@
 # ─────────────────────────────────────────────────────────────────────
 set -u
 
-REPO_DIR="/Users/rithika-18920/Documents/aiaiai/serious/trade"
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 MODE="paper"
 LOG_DIR="$REPO_DIR/logs"
 DATE_STAMP="$(date +%F)"

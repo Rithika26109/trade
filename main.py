@@ -141,8 +141,12 @@ class TradingBot:
                 if self.mode == "live":
                     logger.error("Cannot run live mode without Zerodha connection. Exiting.")
                     sys.exit(1)
-                logger.warning("Running in offline paper mode with limited functionality")
-                self.kite = None
+                logger.error(
+                    "Auth failed — cannot run paper trading without market data. "
+                    "Paper mode needs real-time prices; offline simulation is not supported."
+                )
+                self.notifier.send("Auth failed — bot cannot start without market data.")
+                sys.exit(1)
 
         # ── Order & Position Management ──
         self.order_manager = OrderManager(self.kite, market_data=self.market_data)

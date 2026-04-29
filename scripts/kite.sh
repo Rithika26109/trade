@@ -153,13 +153,18 @@ cmd_order() {
   txn_type=$(echo "$txn_type" | tr '[:lower:]' '[:upper:]')
   symbol=$(echo "$symbol" | tr '[:lower:]' '[:upper:]')
 
-  # Safety check: require --confirm for live mode
-  if [[ "$MODE" == "live" ]]; then
-    if [[ "${5:-}" != "--confirm" ]]; then
-      echo "SAFETY: Live mode requires --confirm flag." >&2
-      echo "  kite.sh order $txn_type $symbol $qty ${price:+$price }--confirm" >&2
-      exit 1
-    fi
+  # Safety: kite.sh always hits LIVE OMS endpoints — there is no paper mode.
+  # Block order placement unless TRADING_MODE=live AND --confirm is passed.
+  if [[ "$MODE" != "live" ]]; then
+    echo "BLOCKED: kite.sh orders always hit live OMS — there is no paper mode." >&2
+    echo "  Use the bot (main.py --paper) for paper trading." >&2
+    echo "  To place a real order: TRADING_MODE=live kite.sh order $txn_type $symbol $qty ${price:+$price }--confirm" >&2
+    exit 1
+  fi
+  if [[ "${5:-}" != "--confirm" ]]; then
+    echo "SAFETY: Live orders require --confirm flag." >&2
+    echo "  kite.sh order $txn_type $symbol $qty ${price:+$price }--confirm" >&2
+    exit 1
   fi
 
   local order_type="MARKET"
@@ -189,13 +194,15 @@ cmd_cancel() {
     exit 1
   fi
 
-  # Safety check: require --confirm for live mode
-  if [[ "$MODE" == "live" ]]; then
-    if [[ "${2:-}" != "--confirm" ]]; then
-      echo "SAFETY: Live mode requires --confirm flag." >&2
-      echo "  kite.sh cancel $order_id --confirm" >&2
-      exit 1
-    fi
+  # Safety: kite.sh always hits LIVE OMS — block in paper mode.
+  if [[ "$MODE" != "live" ]]; then
+    echo "BLOCKED: kite.sh cancel always hits live OMS." >&2
+    exit 1
+  fi
+  if [[ "${2:-}" != "--confirm" ]]; then
+    echo "SAFETY: Live cancels require --confirm flag." >&2
+    echo "  kite.sh cancel $order_id --confirm" >&2
+    exit 1
   fi
 
   echo "── Cancel Order: $order_id [mode=$MODE] ──"
