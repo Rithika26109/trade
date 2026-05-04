@@ -506,6 +506,10 @@ class TradingBot:
 
     def _run_single_cycle(self):
         """Execute one cycle of the trading loop with multi-TF analysis and regime detection."""
+        now_str = settings.now_ist().strftime("%H:%M")
+        watchlist_str = ", ".join(self.todays_watchlist) if self.todays_watchlist else "(none)"
+        logger.info(f"── {now_str} | Watching: {watchlist_str} ──")
+
         # Get current prices for position monitoring
         current_prices = {}
         if self.market_data:
@@ -674,15 +678,23 @@ class TradingBot:
 
         # ── Print status every cycle ──
         pnl = self.order_manager.get_todays_pnl()
-        positions = self.position_manager.get_position_count()
         trades = self.order_manager.get_todays_trade_count()
         unrealized = self.position_manager.get_unrealized_pnl(current_prices)
 
+        open_positions = self.position_manager.open_positions
+        if open_positions:
+            open_str = ", ".join(
+                f"{p.symbol}({'↑' if p.signal == Signal.BUY else '↓'}@{p.executed_price:.0f})"
+                for p in open_positions
+            )
+        else:
+            open_str = "none"
+
         logger.info(
             f"Trades: {trades}/{settings.MAX_TRADES_PER_DAY} | "
-            f"Open: {positions} | "
-            f"Realized P&L: Rs {pnl:+.2f} | "
-            f"Unrealized: Rs {unrealized:+.2f}"
+            f"Holding: {open_str} | "
+            f"Realized: ₹{pnl:+.2f} | "
+            f"Unrealized: ₹{unrealized:+.2f}"
             + (f" | Regime: {regime.value}" if regime else "")
         )
 

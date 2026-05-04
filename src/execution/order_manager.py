@@ -239,7 +239,7 @@ class OrderManager:
             partial_note = f" (partial: {fill_qty}/{signal.quantity})"
 
         logger.info(
-            f"[PAPER] {action} {signal.symbol} | "
+            f">>> [PAPER] {action} {signal.symbol} | "
             f"Qty: {fill_qty}{partial_note} | Price: {signal.price:.2f} | "
             f"Exec: {executed_price:.2f} (slip {slippage_pct:.3f}%) | "
             f"SL: {signal.stop_loss:.2f} | Target: {signal.target:.2f} | "
@@ -666,10 +666,11 @@ class OrderManager:
 
         order.status = OrderStatus.EXECUTED
         order.is_open = False
+        _side = "BUY" if order.signal == Signal.BUY else "SELL"
         logger.info(
-            f"[PAPER] CLOSED {order.symbol} | "
+            f"[PAPER] CLOSED {order.symbol} ({_side}) | "
             f"Entry: {order.executed_price:.2f} | Exit: {exit_price:.2f} | "
-            f"P&L: Rs {order.pnl:.2f} | {reason}"
+            f"P&L: ₹{order.pnl:+.2f} | {reason}"
         )
         audit(
             "order_close",

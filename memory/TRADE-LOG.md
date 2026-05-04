@@ -19,6 +19,36 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 <!-- Daily summaries will be prepended here by /daily-summary and /market-open commands -->
 
+## 2026-05-01 (Friday) — MARKET HOLIDAY
+- Regime: N/A (Maharashtra Day — NSE/BSE closed)
+- Trades: 0 | Wins: 0 | Losses: 0 | Win Rate: N/A
+- P&L: Rs 0.00 (paper capital unchanged: Rs 1,00,012.21)
+- Key trades: None
+- Notes: Bot launched at 09:18, correctly detected holiday and exited in <1s. Git pull at startup failed (503 tunnel) — non-blocking. Resume Fri 2026-05-02.
+
+## 2026-04-30 (Thursday) — EOD
+- Regime: TREND_UP (RELIANCE at BUY entry) | VIX: ~NORMAL
+- Trades: 3 | Wins: 2 | Losses: 1 | Win Rate: 66.7%
+- P&L: +Rs 203.36 (paper capital: Rs 1,00,012.21)
+- Key trades: SELL RELIANCE @1407.9→1407.1 -Rs 9.34 (SL hit, VWAP_ST), BUY RELIANCE @1405.8→1418.5 +Rs 153.998 (target, RSI_EMA), BUY ADANIENT @2376.5→2385.4 +Rs 58.70 (exit, VWAP_ST)
+- Notes: Profitable day; ADANIENT traded despite binary event (Q4 results) flag — strategy violation but happened to profit. All 3 entries single-strategy (1 confirmation) — violates Apr 29 lesson. Partial qty exits persist (21→13 RELIANCE, 12→8 ADANIENT). ADANIENT exit mislabeled "Stop-loss hit" but P&L was positive — logger bug.
+
+## 2026-04-30 (Thursday) — Opening
+- NIFTY prev close: 24,177.65 (TREND_DOWN regime; +0.76% bounce Apr 29 from 23,995 lows)
+- Key gaps: Live quote API unavailable (enctoken limitation — non-blocking, bot fetches data internally)
+- Bot status: RUNNING (paper, PID 9515, launched 09:05, collecting ORB range 9:15–9:30)
+- Watchlist: RELIANCE (score 2.89), INFY (2.88), INDUSINDBK (2.80), ADANIENT (2.58), ICICIBANK (2.38)
+- ALERT: ADANIENT has Q4 FY26 results today (binary event) — pre-market says AVOID, but scanner still selected it. Manual override needed if bot attempts ADANIENT entry.
+- ALERT: INDUSINDBK had 2 SL hits yesterday — pre-market rule: no re-entry today.
+- Regime: TREND_DOWN | VIX: ~NORMAL (18.03 on Apr 28)
+
+## 2026-04-29 (Wednesday) — EOD
+- Regime: STRONG_TREND_UP (RELIANCE/INFY at entry) | TREND_DOWN (TATAPOWER) | VIX: N/A
+- Trades: 5 | Wins: 2 | Losses: 3 | Win Rate: 40%
+- P&L: -Rs 210.79 (paper capital: Rs 99,808.85)
+- Key trades: BUY RELIANCE @1420.91→1413.10 -Rs 164.01 (SL hit), SELL TATAPOWER @455.87→452.65 +Rs 125.66 (EOD), BUY INDUSINDBK @922.21→917.35 -Rs 155.55 (SL hit), BUY INDUSINDBK re-entry +Rs 7.77 (EOD)
+- Notes: All signals single-confirmation (RSI_EMA only). Premature EOD bug fired again at 10:35 — 3rd occurrence, missed ORB window, entries only from 3rd bot restart at 11:34. TATAPOWER qty discrepancy (65 in, 39 closed). INDUSINDBK traded twice.
+
 ## 2026-04-29 (Wednesday) — Opening
 - NIFTY open: ~24,026 (GIFT Nifty pre-open: +31 pts from 23,995; slight gap-up ~+0.13%)
 - Key gaps: INFY -0.65%, TATAPOWER +0.18%, ADANIENT flat, ICICIBANK flat, TCS -0.15%

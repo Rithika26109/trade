@@ -4,6 +4,58 @@ Daily market research, macro observations, and recurring patterns. Most recent f
 
 ---
 
+## 2026-05-04 Pre-Market Research
+- US overnight: SPX +0.08% (7,275.50) — nearly flat, broad-based but muted
+- Asia: SGX Nifty 24,208.50 (implies gap UP ~+0.88% vs NIFTY last close 23,997.55); Nikkei +0.38%; Hang Seng -1.28% (negative drag from HK)
+- India VIX: N/A (API unavailable)
+- NIFTY regime: TREND_DOWN, ATR 1.56%, vol regime LOW — last close 23,997.55 (-0.74%); SGX gap-up creates tension with downtrend
+- FII/DII (Apr 30): FII sold Rs 8,047.86 cr, DII bought Rs 3,487.10 cr — sustained FII selling, DII absorbing
+- USD/INR: 94.89 (-0.02%) — weak rupee, bullish for IT exporters (INFY, TCS, WIPRO)
+- Crude (Brent): $108.10 (-0.06%) — elevated but slightly easing; bearish India macro, watch RELIANCE, BPCL
+- Gold: $4,615 (-$16) — stable, mild safe-haven demand
+- Key news: KOTAKBANK Q4 FY26 results released May 2 (net profit +10% YoY, NPA improved to 1.20%, provisions -43% — POSITIVE, binary event DONE). TATAPOWER: Rs 6,500 cr investment approved for 10 GW solar manufacturing plant (strong positive catalyst). Ambuja Cements, BHEL, Tata Technologies earnings today — NOT in our watchlist. No binary events for primary watchlist today.
+- Sector focus: Power/Renewables POSITIVE (TATAPOWER solar manufacturing, summer demand); Banking mixed-positive (KOTAKBANK clean post-results, ICICIBANK strong Q4 done); IT cautious (USD/INR tailwind but US flat); Energy mixed (RELIANCE profit decline, crude elevated)
+- Watchlist today: TATAPOWER (LONG bias, solar catalyst, earnings May 12 — no event today), KOTAKBANK (LONG bias, clean post-results +10% profit, no event today), ICICIBANK (LONG bias, strong Q4 done, watch RSI 40-70)
+- AVOID: INDUSINDBK (top scanner but volatile — 3 SL hits in W18, use with extreme caution), RELIANCE (mixed Q4, use only on 2+ confirmation), heavy-event names (BHEL etc — not in watchlist anyway)
+- Open bugs going into session: (1) premature EOD bug unresolved — bot may stop at ~10:35 AM, (2) single-confirmation rule not code-enforced, (3) partial qty exit bug in order_manager.py
+
+---
+
+## 2026-05-01 Midday Update (12:00 IST)
+
+- **MARKET HOLIDAY** — Maharashtra Day. NSE/BSE closed. No trading session today.
+- Bot correctly detected holiday at 09:18 and exited cleanly: "Market closed today (2026-05-01 — weekend or holiday)."
+- Token refresh at 07:50 succeeded. 08:03 run failed (DNS/network error at that time) — non-blocking, 07:50 token was valid.
+- Capital: ~Rs 1,00,012 (unchanged from Apr 30 close).
+- No action needed. All launchd routines resume tomorrow (May 2, Friday).
+- Open items going into May 2: (1) premature EOD bug unresolved, (2) partial qty exit bug in order_manager.py, (3) single-confirmation filter not yet enforced in code.
+
+---
+
+## 2026-04-30 Midday Update (12:05 IST)
+
+- Regime: TREND_DOWN (NIFTY -1.37% to 23,846.75). Vol regime: LOW.
+- Bot trades today: 2/5 used. RELIANCE SHORT entered 09:40 (VWAP_ST, 1-strategy only), SL hit 11:30 at 1407.10, -Rs 9.34 (13 qty). RELIANCE BUY entered 11:40 (RSI_EMA, 1-strategy only) — open at 12:05.
+- ALERT: Both trades violated Apr 29 lesson (require 2+ strategy confirmations). Bot is still taking single-confirmation entries.
+- ALERT: Same-stock re-entry same day (SHORT then LONG RELIANCE) — violates Apr 29 lesson on re-entries after SL.
+- Afternoon top scanner: INDUSINDBK score=3.14 (BANNED today — 2 SL hits Apr 29), RELIANCE=2.87, ITC=2.53, ICICIBANK=2.49, BHARTIARTL=2.24.
+- ADANIENT still on scanner list despite Q4 results today — manual override remains active.
+- Kite quote API: still returning InputException (enctoken limitation, non-blocking).
+- Realized P&L: -Rs 9.34 | Unrealized: open RELIANCE BUY qty 21 @ 1405.80 | Risk headroom: ~Rs 2,990 remaining.
+
+## 2026-04-29 Midday Update (12:00 IST)
+
+- Regime: STRONG_TREND_UP (bot confirmed, ADX=49.6 on RELIANCE)
+- Bot started at 09:05 — ON TIME. But premature EOD bug fired AGAIN at 10:35 AM (same as 2026-04-27). Bot restarted at 10:36, then again at 11:34. Root cause unresolved — urgent fix needed.
+- 3 open paper trades entered at ~11:34 on 3rd bot instance:
+  - LONG RELIANCE | 21 qty | Entry 1420.91 | SL 1413.50 | Target 1433.70 | ADX=49.6
+  - LONG INFY | 25 qty | Entry 1173.09 | SL 1166.60 | Target 1184.40 | ADX=43.6
+  - SHORT TATAPOWER | 65 qty | Entry 455.87 | SL 458.10 | Target 452.05 | RSI=31.0 (borderline rule)
+- Unrealized P&L at 11:59: +Rs 50.21 | Realized: Rs 0
+- Watchlist: INDUSINDBK (top score 2.86), RELIANCE (2.82), INFY (2.82), TATAPOWER (2.47), ADANIENT (2.31)
+- Kite quote API: returning InputException — cannot fetch live prices mid-session
+- ⚠️ TATAPOWER short entered with RSI=31.0 — strategy hard rule is RSI < 30 is rejected. This passed but is borderline; watch for oversold bounce.
+
 ## 2026-04-28 Midday Update (12:00 IST)
 
 - Regime: RANGING all morning (09:30–12:00), no regime shift
@@ -38,11 +90,26 @@ _Patterns observed across multiple sessions. Updated by /weekly-review._
 
 - **RSI entry zone matters for shorts:** RSI 40-50 entries profitable, RSI < 30 entries lose (oversold bounce risk). Sample: 3 trades, Apr 24.
 - **STRONG_TREND_DOWN regime produces clean short signals** — all 3 shorts on Apr 24 were directionally correct, only the oversold entry lost.
-- **Bot late-start misses ORB window** — session started 13:49, no ORB data captured. Full 9:30 start needed.
+- **Bot late-start misses ORB window** — session started 13:49 (Apr 24), no ORB data captured. Full 9:30 start needed.
+- **Premature EOD bug systematically kills ORB strategy (W18):** Bug fired at ~10:35 AM on Apr 27 and Apr 29 (3 times across week). After bot restart, opening range window is gone, so all entries fall to RSI+EMA / VWAP+ST. Result: ORB ran 0 trades in W18 despite being the primary strategy. Fix `wind-down` time comparison in commit 943a95b.
+- **Daily regime mispredicts intraday reversals (W18):** 1/4 accuracy — pre-market correctly identified TREND_DOWN at the daily level but intraday price action reversed UP on Apr 28, 29, 30. Daily regime alone is not a reliable directional bias for intraday entries.
+- **R:R filter is the strongest discipline guardrail (W18):** On Apr 28 (RANGING), 7 signals were correctly rejected for sub-1.5 R:R. On Apr 27, all signals rejected for poor R:R. The filter saved capital on weak setups even when other rules (2+ confirmation, binary-event block) failed.
+- **Rule violations cluster on profitable days (W18):** Apr 30 had 67% win rate and +Rs 203 P&L but violated 3 rules (single-confirmation x3, binary-event trade, partial qty exits). Profit reinforces the rule break — explicit code enforcement needed.
 
 ---
 
 <!-- Daily research entries will be prepended here by /pre-market command -->
+
+## 2026-04-30 Pre-Market Research
+- US overnight: SPX/NDQ placeholders (Gemini API returned no real-time data) — use Apr 29 context: SPX ~7138 (-0.49%), NDQ ~24663 (-0.90%), tech weakness
+- Asia: GIFT Nifty not confirmed; NIFTY prior close 24,177.65 (+0.76% recovery from Apr 29 lows of ~23,995)
+- India VIX: N/A (API unavailable)
+- NIFTY regime: TREND_DOWN, ATR 1.55%, vol regime LOW — yesterday closed up +0.76% (24,177.65), short-term bounce within downtrend
+- Scanner top 5: INFY (2.58, IT), INDUSINDBK (2.56, Banking), RELIANCE (2.44, Energy), SAIL (2.37, Metals), TATAPOWER (2.35, Power)
+- Key news: ADANIENT Q4 FY26 results TODAY (binary event, AVOID). TATAPOWER earnings May 12 (no event today, tradeable). KOTAKBANK results ~May 3 (avoid). INFY post-results ADR -5.49% + analyst PT cut (TD Cowen to $13) — mixed despite Q4 beat. TCS strong (25.3% margins, AI revenue $2.3B). ICICIBANK strong Q4 done (profit +8.5%, NPA 0.33%).
+- Sector focus: IT cautious (INFY post-result hangover, wait RSI 40-60); Banking mixed (ICICIBANK tradeable, HDFCBANK FII selling → avoid); Power/Renewables positive (TATAPOWER tailwinds — heat wave demand + renewables); Energy mixed (RELIANCE profit -12.6% Q4, Jio IPO LT positive)
+- Watchlist today: RELIANCE (scan 2.44, caution bias, wait 2+ confirmations), TATAPOWER (scan 2.35, LONG bias, power demand tailwind, no event risk), ICICIBANK (scan 2.14, LONG bias, clean Q4)
+- AVOID: ADANIENT (earnings today — binary risk), HDFCBANK (FII selling, mixed), INFY (analyst downgrade + ADR drop — wait for RSI to confirm 40-60 before entry), INDUSINDBK (SL hit yesterday + re-entry rule applies)
 
 ## 2026-04-29 Pre-Market Research
 - US overnight: SPX -0.49% (7,138.80), NDQ -0.90% (24,663.80) — tech weakness led by AI/OpenAI valuation concerns; energy/defensives strong
