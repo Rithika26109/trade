@@ -35,7 +35,7 @@ def setup_logger():
     log_dir.mkdir(parents=True, exist_ok=True)
 
     logger.add(
-        str(log_dir / "bot_{time:YYYY-MM-DD}.log"),
+        str(log_dir / "bot-{time:YYYY-MM-DD}.log"),
         format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {message}",
         level="DEBUG",
         rotation="00:00",  # New file every day at midnight

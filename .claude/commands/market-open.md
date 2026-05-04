@@ -46,7 +46,7 @@ For significant gaps (> 0.5%):
 Check recent log activity:
 ```bash
 ls -la logs/
-tail -5 logs/bot_$(date +%Y-%m-%d).log 2>/dev/null || echo "No bot log found for today"
+tail -5 logs/bot-$(date +%Y-%m-%d).log 2>/dev/null || echo "No bot log found for today"
 ```
 
 If no log found, warn: "The bot doesn't appear to be running. Start it with: `TRADING_MODE=paper python main.py`"

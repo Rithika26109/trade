@@ -72,7 +72,7 @@ MAX_TRADES_PER_DAY = 7  # Max trades per day (paper testing; tighten to 4-5 for 
 MAX_OPEN_POSITIONS = 4  # Max concurrent positions (paper testing; tighten to 2-3 for live)
 MIN_RISK_REWARD_RATIO = 1.5  # Minimum 1:1.5 risk/reward (net of costs)
 TARGET_RISK_REWARD_RATIO = 2.0  # Target R:R for setting profit targets (must be > MIN to survive cost deduction)
-MAX_POSITION_PCT = 50.0  # Max 50% of capital in a single position
+MAX_POSITION_PCT = 40.0  # Max 40% of capital in a single position
 MAX_CONSECUTIVE_LOSSES = 3  # Pause after 3 consecutive losses
 PAUSE_AFTER_LOSSES_MINUTES = 10  # Pause duration after consecutive losses
 
@@ -219,7 +219,7 @@ WATCHLIST = [
     "KOTAKBANK",
     "LT",
     # Mid-cap (F&O eligible, high intraday volume)
-    "TATAMOTORS",
+    "TATASTEEL",
     "TATAPOWER",
     "PNB",
     "ADANIENT",
@@ -228,7 +228,7 @@ WATCHLIST = [
     "DLF",
     "BPCL",
     "SAIL",
-    "ZOMATO",
+    "ETERNAL",
 ]
 
 # ── Stock Selection Filters ──
@@ -266,7 +266,7 @@ CORRELATION_LIMIT_THRESHOLD = 0.7      # avg corr with open positions
 CORRELATION_LOOKBACK_DAYS = 20
 KELLY_USE_DB_HISTORY = True            # include DB-closed trades in Kelly
 COSTS_ROUND_TRIP_BPS = 15.0             # ~0.15% round-trip (brokerage+STT+GST+stamps+slippage)
-FAT_FINGER_MAX_NOTIONAL_PCT = 40.0     # absolute hard cap notional % of capital
+FAT_FINGER_MAX_NOTIONAL_PCT = 50.0     # absolute hard cap notional % of capital
 PERSIST_INTRADAY_HWM = True            # persist HWM + daily_loss across restart
 
 # ── Phase 3D: ML filter (opt-in, not implemented yet) ──

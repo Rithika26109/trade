@@ -17,6 +17,13 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-04 (Monday) — Opening
+- NIFTY: no direct quote (enctoken auth limitation — using individual stock data)
+- Key gaps: INDUSINDBK +1.00%, ITC +0.95% (gap-filling, LTP below prev close), ADANIENT -0.75% (wide ORB range Rs 2382–2457, post-earnings volatility), RELIANCE +0.18%, ICICIBANK +0.07%
+- Bot status: Running (started 09:15:10, ORB window 09:15–09:30)
+- Watchlist: INDUSINDBK, RELIANCE, ADANIENT, ICICIBANK, ITC
+- Flags: ADANIENT wide range (3.1% ORB); ITC gap fade (opened up, reversed below prev close)
+
 <!-- Daily summaries will be prepended here by /daily-summary and /market-open commands -->
 
 ## 2026-05-01 (Friday) — MARKET HOLIDAY

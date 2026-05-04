@@ -271,7 +271,7 @@ LOG_LEVEL = "DEBUG"  # Change from "INFO" to "DEBUG"
 ### Check logs
 ```bash
 # Today's bot log
-cat logs/bot_$(date +%Y-%m-%d).log
+cat logs/bot-$(date +%Y-%m-%d).log
 
 # Today's trade log
 cat logs/trades/trades_$(date +%Y-%m-%d).log

@@ -21,6 +21,19 @@ Daily market research, macro observations, and recurring patterns. Most recent f
 
 ---
 
+## 2026-05-04 Midday Update (12:00 IST)
+
+- **No trades taken** this morning (9:30–12:00) — bot running clean, no signals met entry criteria
+- Open positions: 0 | Orders today: 0
+- Bot PIDs confirmed running (35271, 42133) — no premature EOD so far (positive vs Apr 27/29 bugs)
+- Afternoon scanner top candidates: HDFCBANK (score 1.47, price 783.5), TCS (score 1.26, price 2438), DLF (score 1.24, price 601.6), LT (score 1.09, price 4122.9)
+- Morning watchlist (from pre-market): TATAPOWER, KOTAKBANK, ICICIBANK — none triggered
+- NIFTY regime: TREND_DOWN (from pre-market), but SGX gap-up created tension — if NIFTY held above 24,200, regime may have shifted to RANGING or TREND_UP intraday
+- Lunch lull in effect (12:00–1:30 PM) — expect low-volume chop; best afternoon setups post-1:30 PM
+- Capital: Rs 1,00,012.21 (unchanged — no realized P&L today)
+
+---
+
 ## 2026-05-01 Midday Update (12:00 IST)
 
 - **MARKET HOLIDAY** — Maharashtra Day. NSE/BSE closed. No trading session today.

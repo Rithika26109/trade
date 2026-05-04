@@ -62,7 +62,7 @@ EOF
 
 # ── Keep the Mac awake for ~6h40m (covers 09:05 → 15:45 IST). ──
 # -i: prevent idle sleep. -t seconds (24000 = 6h40m).
-caffeinate -i -t 24000 &
+caffeinate -is -t 24000 &
 CAFFEINATE_PID=$!
 trap 'rm -f "$PIDFILE"; kill "$CAFFEINATE_PID" 2>/dev/null || true' EXIT
 
