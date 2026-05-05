@@ -33,6 +33,7 @@ class TradeSignal:
     confluence_details: dict = field(default_factory=dict)  # Component breakdown
     rsi: float | None = None  # RSI at signal time (used by risk manager)
     entry_atr: float = 0.0  # ATR at signal time (used for trailing stop)
+    confirming_strategies: list = field(default_factory=list)  # Names of strategies that agreed (set by orchestrator)
 
     @property
     def risk_per_share(self) -> float:

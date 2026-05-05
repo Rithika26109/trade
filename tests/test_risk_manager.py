@@ -32,8 +32,15 @@ def _make_signal(
     target=2600.0,
     confluence_score=0.0,
     strategy="ORB",
+    confirming_strategies=None,
 ):
-    """Create a TradeSignal with sensible defaults."""
+    """Create a TradeSignal with sensible defaults.
+
+    Defaults to two confirming strategies so existing tests pass the
+    MIN_CONFIRMATIONS gate; pass an explicit list/[] to override.
+    """
+    if confirming_strategies is None:
+        confirming_strategies = ["ORB", "RSI_EMA"]
     return TradeSignal(
         signal=signal,
         symbol=symbol,
@@ -42,6 +49,7 @@ def _make_signal(
         target=target,
         confluence_score=confluence_score,
         strategy=strategy,
+        confirming_strategies=confirming_strategies,
     )
 
 
@@ -281,3 +289,116 @@ class TestBreakevenEdge:
 
         open_orders = om.get_open_orders()
         assert order not in open_orders, "Breakeven-closed order must not appear in open orders"
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: Min confirmations + stopped-symbol cooldown (2026-05-05)
+# ---------------------------------------------------------------------------
+
+class TestMinConfirmations:
+
+    def test_single_strategy_signal_rejected(self, mock_risk_manager):
+        """A signal from only one strategy should be rejected when MIN_CONFIRMATIONS=2."""
+        rm = mock_risk_manager
+        original = settings.MIN_CONFIRMATIONS
+        settings.MIN_CONFIRMATIONS = 2
+        try:
+            sig = _make_signal(confirming_strategies=["ORB"])  # only one
+            result = rm.evaluate(sig)
+            assert result is None, "Single-confirmation trade must be rejected"
+        finally:
+            settings.MIN_CONFIRMATIONS = original
+
+    def test_two_strategies_signal_accepted(self, mock_risk_manager):
+        """A signal with 2+ confirming strategies passes the gate."""
+        rm = mock_risk_manager
+        original = settings.MIN_CONFIRMATIONS
+        settings.MIN_CONFIRMATIONS = 2
+        try:
+            sig = _make_signal(confirming_strategies=["ORB", "RSI_EMA"])
+            # Patch time/equity multipliers so position sizing is independent
+            # of when the test runs.
+            with patch.object(rm, "_get_time_multiplier", return_value=1.0), \
+                 patch.object(rm, "_get_equity_curve_multiplier", return_value=1.0), \
+                 patch.object(rm, "_get_vix_multiplier", return_value=1.0), \
+                 patch.object(rm, "_get_kelly_multiplier", return_value=1.0):
+                result = rm.evaluate(sig)
+            assert result is not None, "Two-confirmation trade should pass the min-conf gate"
+        finally:
+            settings.MIN_CONFIRMATIONS = original
+
+    def test_high_conviction_single_strategy_allowed(self, mock_risk_manager):
+        """A single-strategy signal with score >= HIGH_CONVICTION_SCORE bypasses the gate."""
+        rm = mock_risk_manager
+        orig_min = settings.MIN_CONFIRMATIONS
+        orig_hc = getattr(settings, "HIGH_CONVICTION_SCORE", None)
+        settings.MIN_CONFIRMATIONS = 2
+        settings.HIGH_CONVICTION_SCORE = 80.0
+        try:
+            sig = _make_signal(
+                confirming_strategies=["ORB"],
+                confluence_score=85.0,
+            )
+            with patch.object(rm, "_get_time_multiplier", return_value=1.0), \
+                 patch.object(rm, "_get_equity_curve_multiplier", return_value=1.0), \
+                 patch.object(rm, "_get_vix_multiplier", return_value=1.0), \
+                 patch.object(rm, "_get_kelly_multiplier", return_value=1.0):
+                result = rm.evaluate(sig)
+            assert result is not None, "High-conviction single-strategy trade must pass"
+        finally:
+            settings.MIN_CONFIRMATIONS = orig_min
+            if orig_hc is None:
+                delattr(settings, "HIGH_CONVICTION_SCORE")
+            else:
+                settings.HIGH_CONVICTION_SCORE = orig_hc
+
+    def test_low_score_single_strategy_still_rejected(self, mock_risk_manager):
+        """A single-strategy signal with score < HIGH_CONVICTION_SCORE is rejected."""
+        rm = mock_risk_manager
+        orig_min = settings.MIN_CONFIRMATIONS
+        orig_hc = getattr(settings, "HIGH_CONVICTION_SCORE", None)
+        settings.MIN_CONFIRMATIONS = 2
+        settings.HIGH_CONVICTION_SCORE = 80.0
+        try:
+            sig = _make_signal(
+                confirming_strategies=["ORB"],
+                confluence_score=60.0,  # below threshold
+            )
+            result = rm.evaluate(sig)
+            assert result is None, "Below-threshold single-strategy trade must be rejected"
+        finally:
+            settings.MIN_CONFIRMATIONS = orig_min
+            if orig_hc is None:
+                delattr(settings, "HIGH_CONVICTION_SCORE")
+            else:
+                settings.HIGH_CONVICTION_SCORE = orig_hc
+
+
+class TestStoppedSymbolCooldown:
+
+    def test_sl_hit_blocks_same_day_reentry(self, mock_risk_manager):
+        """A symbol that hits SL today must be blocked from re-entry."""
+        rm = mock_risk_manager
+        original = getattr(settings, "STOPPED_SYMBOL_COOLDOWN", False)
+        settings.STOPPED_SYMBOL_COOLDOWN = True
+        try:
+            # Simulate a stop-loss hit on PNB
+            rm.record_trade_result(-200.0, symbol="PNB", exit_reason="Stop-loss hit at 109.74")
+            assert "PNB" in rm._stopped_symbols_today
+
+            sig = _make_signal(symbol="PNB")
+            result = rm.evaluate(sig)
+            assert result is None, "Re-entry on stopped symbol must be rejected"
+        finally:
+            settings.STOPPED_SYMBOL_COOLDOWN = original
+
+    def test_target_hit_does_not_trigger_cooldown(self, mock_risk_manager):
+        """Closing at target (not SL) must NOT add the symbol to cooldown."""
+        rm = mock_risk_manager
+        original = getattr(settings, "STOPPED_SYMBOL_COOLDOWN", False)
+        settings.STOPPED_SYMBOL_COOLDOWN = True
+        try:
+            rm.record_trade_result(+300.0, symbol="RELIANCE", exit_reason="Target hit at 2600.00")
+            assert "RELIANCE" not in rm._stopped_symbols_today
+        finally:
+            settings.STOPPED_SYMBOL_COOLDOWN = original

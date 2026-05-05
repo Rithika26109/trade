@@ -42,6 +42,11 @@ class RiskManager:
         self._daily_loss = 0.0
         self._unrealized_pnl = 0.0
 
+        # Per-symbol same-day stop-loss cooldown (added 2026-05-05).
+        # Populated by record_trade_result() when a trade closes via SL hit.
+        # Resets naturally on bot restart (launchd starts fresh each morning).
+        self._stopped_symbols_today: set[str] = set()
+
         # Intraday drawdown tracking
         self._intraday_high_water_mark = 0.0
         self._intraday_drawdown = 0.0
@@ -154,6 +159,32 @@ class RiskManager:
             )
             return None
 
+        # ── Min confirmations gate (added 2026-05-05) ──
+        # Require N strategies to agree before entering. Single-strategy
+        # entries produced 100% of the May 4–5 paper losses.
+        # Escape hatch: a *single* strategy can still trigger an entry if its
+        # confluence_score is at or above HIGH_CONVICTION_SCORE.
+        min_conf = getattr(settings, "MIN_CONFIRMATIONS", 1)
+        if min_conf > 1:
+            n_conf = len(signal.confirming_strategies) if signal.confirming_strategies else 1
+            high_conv = getattr(settings, "HIGH_CONVICTION_SCORE", None)
+            if n_conf < min_conf and not (
+                high_conv is not None and signal.confluence_score >= high_conv
+            ):
+                logger.warning(
+                    f"[RISK] Trade REJECTED for {signal.symbol}: "
+                    f"only {n_conf} strategy confirms (min {min_conf}, "
+                    f"score {signal.confluence_score:.1f} < high-conv {high_conv}) "
+                    f"[{', '.join(signal.confirming_strategies) or signal.strategy}]"
+                )
+                return None
+            if n_conf < min_conf:
+                logger.info(
+                    f"[RISK] {signal.symbol} single-strategy entry allowed "
+                    f"(score {signal.confluence_score:.1f} >= {high_conv} high-conv) "
+                    f"[{signal.strategy}]"
+                )
+
         # ── Check confluence score threshold ──
         if getattr(settings, 'ENABLE_CONFLUENCE_SCORING', False):
             threshold = getattr(settings, 'CONFLUENCE_THRESHOLD', 55)
@@ -230,6 +261,17 @@ class RiskManager:
 
     def _check_circuit_breakers(self, signal: TradeSignal = None) -> str | None:
         """Check all circuit breaker conditions. Returns rejection reason or None."""
+
+        # Per-symbol same-day stop-loss cooldown (added 2026-05-05)
+        if (
+            signal is not None
+            and getattr(settings, "STOPPED_SYMBOL_COOLDOWN", False)
+            and signal.symbol in self._stopped_symbols_today
+        ):
+            return (
+                f"{signal.symbol} stopped out earlier today "
+                f"— no re-entry (cooldown)"
+            )
 
         # Daily loss limit (includes unrealized P&L from open positions)
         daily_pnl = self.order_manager.get_todays_pnl() + self._unrealized_pnl
@@ -586,8 +628,30 @@ class RiskManager:
         except Exception:
             return None
 
-    def record_trade_result(self, pnl: float):
-        """Record a completed trade's P&L for circuit breaker tracking."""
+    def record_trade_result(self, pnl: float, symbol: str | None = None, exit_reason: str | None = None):
+        """Record a completed trade's P&L for circuit breaker tracking.
+
+        Args:
+            pnl: Realised P&L for the closed trade.
+            symbol: (optional) Symbol that was closed; used for per-symbol
+                same-day cooldown tracking when ``exit_reason`` indicates SL.
+            exit_reason: (optional) Free-text exit reason from the order
+                manager (e.g. ``"Stop-loss hit at 109.74"``). Anything starting
+                with ``"Stop-loss"`` triggers cooldown.
+        """
+        # Per-symbol cooldown: track this symbol if it stopped out today
+        if (
+            symbol
+            and exit_reason
+            and getattr(settings, "STOPPED_SYMBOL_COOLDOWN", False)
+            and exit_reason.lower().startswith("stop-loss")
+        ):
+            self._stopped_symbols_today.add(symbol)
+            logger.warning(
+                f"[RISK] {symbol} added to same-day cooldown set "
+                f"(SL hit) — no re-entry today"
+            )
+
         if pnl < 0:
             self._consecutive_losses += 1
             if self._consecutive_losses >= settings.MAX_CONSECUTIVE_LOSSES:

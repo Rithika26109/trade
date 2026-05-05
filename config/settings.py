@@ -68,13 +68,16 @@ CATCH_UP_CANDLES = 4
 INITIAL_CAPITAL = 100000  # Starting capital in Rs (used for paper trading)
 RISK_PER_TRADE_PCT = 3.0  # Max 3% risk per trade (paper testing; tighten to 0.5% for live)
 MAX_DAILY_LOSS_PCT = 3.0  # Stop trading after 3% daily loss (paper testing; tighten to 2% for live)
-MAX_TRADES_PER_DAY = 7  # Max trades per day (paper testing; tighten to 4-5 for live)
+MAX_TRADES_PER_DAY = 7  # Max trades per day (was 7 — tightened 2026-05-05 after PNB chop losses)
 MAX_OPEN_POSITIONS = 4  # Max concurrent positions (paper testing; tighten to 2-3 for live)
 MIN_RISK_REWARD_RATIO = 1.5  # Minimum 1:1.5 risk/reward (net of costs)
 TARGET_RISK_REWARD_RATIO = 2.0  # Target R:R for setting profit targets (must be > MIN to survive cost deduction)
 MAX_POSITION_PCT = 40.0  # Max 40% of capital in a single position
-MAX_CONSECUTIVE_LOSSES = 3  # Pause after 3 consecutive losses
+MAX_CONSECUTIVE_LOSSES = 2  # Pause after 2 consecutive losses (was 3 — tightened 2026-05-05)
 PAUSE_AFTER_LOSSES_MINUTES = 10  # Pause duration after consecutive losses
+MIN_CONFIRMATIONS = 2  # Min number of strategies that must agree for an entry (added 2026-05-05)
+HIGH_CONVICTION_SCORE = 80.0  # Single-strategy entries allowed if confluence_score >= this (added 2026-05-05)
+STOPPED_SYMBOL_COOLDOWN = True  # Block re-entry on a symbol after a same-day SL hit (added 2026-05-05)
 
 # ── Stop-Loss Settings ──
 STOP_LOSS_TYPE = "TRAILING"  # Options: "FIXED", "ATR", "TRAILING"
@@ -218,6 +221,11 @@ WATCHLIST = [
     "ITC",
     "KOTAKBANK",
     "LT",
+    # Sector diversifiers added 2026-05-05 (private bank, FMCG, IT, pharma)
+    "AXISBANK",
+    "HINDUNILVR",
+    "HCLTECH",
+    "SUNPHARMA",
     # Mid-cap (F&O eligible, high intraday volume)
     "TATASTEEL",
     "TATAPOWER",
@@ -237,7 +245,7 @@ MIN_PRICE = 100  # Minimum stock price (Rs)
 MAX_PRICE = 5000  # Maximum stock price (Rs)
 
 # ── Scanner (Phase 3A) ──
-SCANNER_TOP_N = 5                 # Only trade the top-N ranked candidates
+SCANNER_TOP_N = 8                 # Top-N ranked candidates per day (raised 2026-05-05 from 5; watchlist grew to 20)
 SCANNER_VOLUME_WEIGHT = 0.20
 SCANNER_VOLATILITY_WEIGHT = 0.20
 SCANNER_MOMENTUM_WEIGHT = 0.25

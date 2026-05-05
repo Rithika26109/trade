@@ -114,6 +114,7 @@ class StrategyOrchestrator(BaseStrategy):
             agreement_bonus = (len(buy_signals) - 1) * 10
             best.confluence_score += agreement_bonus
             agreeing = [s.strategy for s in buy_signals]
+            best.confirming_strategies = agreeing
             best.reason += f" | MULTI: {len(buy_signals)} strategies agree ({', '.join(agreeing)})"
             best.strategy = self.name
             return best
@@ -123,6 +124,7 @@ class StrategyOrchestrator(BaseStrategy):
             agreement_bonus = (len(sell_signals) - 1) * 10
             best.confluence_score += agreement_bonus
             agreeing = [s.strategy for s in sell_signals]
+            best.confirming_strategies = agreeing
             best.reason += f" | MULTI: {len(sell_signals)} strategies agree ({', '.join(agreeing)})"
             best.strategy = self.name
             return best

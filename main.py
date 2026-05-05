@@ -482,7 +482,7 @@ class TradingBot:
         for order in self.order_manager.orders:
             if not order.is_open and order.order_id not in self._logged_order_ids:
                 self.db.log_trade(order)
-                self.risk_manager.record_trade_result(order.pnl)
+                self.risk_manager.record_trade_result(order.pnl, symbol=order.symbol, exit_reason=getattr(order, "exit_reason", None))
                 self.risk_manager.update_capital(self.risk_manager.capital + order.pnl)
                 tracker = getattr(self, "_regime_perf_tracker", None)
                 if tracker is not None:
@@ -528,7 +528,7 @@ class TradingBot:
         for order in self.order_manager.orders:
             if not order.is_open and order.order_id not in self._logged_order_ids:
                 self.db.log_trade(order)
-                self.risk_manager.record_trade_result(order.pnl)
+                self.risk_manager.record_trade_result(order.pnl, symbol=order.symbol, exit_reason=getattr(order, "exit_reason", None))
                 self.risk_manager.update_capital(self.risk_manager.capital + order.pnl)
                 # Phase 3C: feed regime-perf tracker
                 tracker = getattr(self.strategy, "tracker", None)
@@ -728,7 +728,7 @@ class TradingBot:
         for order in self.order_manager.orders:
             if not order.is_open and order.order_id not in self._logged_order_ids:
                 self.db.log_trade(order)
-                self.risk_manager.record_trade_result(order.pnl)
+                self.risk_manager.record_trade_result(order.pnl, symbol=order.symbol, exit_reason=getattr(order, "exit_reason", None))
                 self.risk_manager.update_capital(self.risk_manager.capital + order.pnl)
                 self._logged_order_ids.add(order.order_id)
             elif order.is_open and order.order_id not in self._logged_order_ids:

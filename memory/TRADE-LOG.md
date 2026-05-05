@@ -4,6 +4,22 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-05 (Tuesday) — EOD
+- Regime: TREND_DOWN (PNB bearish bias) | VIX: ~NORMAL
+- Trades: 4 | Wins: 0 | Losses: 4 | Win Rate: 0%
+- P&L: -Rs 1,153.77 (paper capital: Rs 98,172.97)
+- Key trades: BUY RELIANCE @1464.4→1464.2 -Rs14.21 (EOD, 1-strat, 10 of 27 shares unaccounted), SELL PNB @107.79→108.16 -Rs101.06 (SL, 1-strat, ORB), SELL PNB re-entry @107.73→109.74 -Rs777.16 (SL gap-through, 2-strat ✓), SELL PNB re-entry #2 @107.45→108.07 -Rs261.34 (SL, 1-strat, 3rd consecutive SL)
+- Notes: Worst day by P&L. PNB is outside the defined NIFTY 50 universe. 3 PNB re-entries on same stock violated Apr 29 + May 4 lessons. 1 orphaned TCS position (from Apr 24 restart) closed at breakeven today. Partial exit bug: 27→17 on RELIANCE. 3-consecutive-loss stop rule not triggered.
+
+## 2026-05-05 (Tuesday) — Opening
+- Watchlist: RELIANCE, ADANIENT, PNB, SBIN, INDUSINDBK
+- Opening gaps: RELIANCE -0.48%, ADANIENT -0.12%, PNB -0.09%, SBIN -0.65%, INDUSINDBK -0.20%
+- All stocks flat gap-down. No large gaps (> 2%). Market mildly weak at open.
+- Bot status: RUNNING — launched 9:15:12, collecting ORB range, scan starts 9:30
+- Flag: ADANIENT in watchlist again — had SL gap-through and re-entry violations on May 4. Watch closely.
+
+---
+
 ## Entry Format
 
 ```
@@ -25,6 +41,13 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 - Flags: ADANIENT wide range (3.1% ORB); ITC gap fade (opened up, reversed below prev close)
 
 <!-- Daily summaries will be prepended here by /daily-summary and /market-open commands -->
+
+## 2026-05-04 (Monday) — EOD
+- Regime: STRONG_TREND_UP (ADANIENT) / TREND_DOWN (KOTAKBANK) | VIX: ~NORMAL
+- Trades: 4 | Wins: 2 | Losses: 2 | Win Rate: 50%
+- P&L: -Rs 685.47 (paper capital: Rs 99,326.74)
+- Key trades: BUY ADANIENT @2508.1→2456.7 -Rs 803.51 (SL hit, slippage +Rs 304 beyond SL), SELL KOTAKBANK @373.7→371.85 +Rs 165.51 (EOD, RSI_EMA), SELL ITC @312.3→311.25 +Rs 115.51 (EOD, ORB+VWAP_ST ✓), BUY ADANIENT re-entry @2492.6→2483.9 -Rs 162.98 (EOD, VWAP_ST)
+- Notes: Worst day yet. ADANIENT SL gapped through by Rs 18/share (SL 2474.8, exit 2456.7). Three of four entries violated the 2+ confirmation rule. Re-entry on ADANIENT after SL hit violated Apr 29 lesson. Only rule-following trade was ITC (2 confirmations) — profitable. Both wins via EOD square-off, not targets.
 
 ## 2026-05-01 (Friday) — MARKET HOLIDAY
 - Regime: N/A (Maharashtra Day — NSE/BSE closed)

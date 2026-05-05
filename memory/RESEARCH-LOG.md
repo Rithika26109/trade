@@ -4,6 +4,34 @@ Daily market research, macro observations, and recurring patterns. Most recent f
 
 ---
 
+## 2026-05-05 Midday Update
+- Regime remains TREND_DOWN, vol regime LOW, VIX NORMAL (API still unavailable)
+- Bot healthy: running in paper mode since 09:05 IST (PID 90522), no premature EOD today
+- Trades: 0/7 — all 5 watched stocks have stayed within ORB ranges all session (no breakout)
+- ORB ranges locked: RELIANCE 1455–1469, ADANIENT 2450–2489, PNB 107.82–108.84, SBIN 1060–1068, INDUSINDBK 906.55–914.60
+- SBIN danger zone: RSI 22–28 (extreme oversold), ADX 53–55 — strong downtrend + RSI < 30 = hard NO-TRADE per rules (no short due to oversold bounce risk; no long against downtrend)
+- INDUSINDBK: RSI 35, ST bearish, below VWAP — no setup
+- RELIANCE: RSI cooled from 73 (morning) to 43 now, price back inside range, ST flipped bearish — missed the morning opportunity
+- Afternoon scanner: TATAPOWER emerging (score 2.31, momentum 3.2, vol 5.0, price 437.45) — not in current watchlist but worth tracking if regime shifts
+- Lunch lull in effect (12:00–1:30 PM) — expect thin volume, avoid new entries until 1:30 PM+
+
+## 2026-05-05 Pre-Market Research
+- US overnight: SPX -0.41% (7,200.75), NDQ -0.19% (25,067.80), DJIA -1.13% (48,941.90) — broadly negative, geopolitical tensions in Middle East; 10/11 S&P sectors declined
+- Asia: SGX Nifty 24,040 (+0.12%, +29.5 pts vs prior close 24,119.3) → flat-to-slight gap-up expected; Nikkei +0.38%; Hang Seng +1.24% — Asia broadly positive despite US weakness
+- India VIX: N/A (API unavailable)
+- NIFTY regime: STRONG_TREND_DOWN, ATR 1.54%, vol regime LOW — last close 24,119.3 (+0.51%); tension: regime says DOWN but NIFTY closed green yesterday + SGX gap-up
+- FII/DII (May 4): DII bought Rs 4,764.16 cr (strong DII support); FII flow not confirmed but prior trend was heavy selling
+- USD/INR: 95.09 (+0.18%) — rupee weakening, bullish for IT exporters (TCS, INFY, WIPRO)
+- Crude (Brent): $113.41 (-0.90%) — elevated but slightly easing; still bearish India macro, watch RELIANCE, BPCL, ONGC
+- Gold: $4,558.20 — stable, mild safe-haven demand; Middle East geopolitical risk ongoing
+- Key news: **BINARY EVENTS TODAY — LT (Q4 results), PNB (Q4 results), M&M (Q4), Hero MotoCorp (Q4), Marico (Q4), Coforge (Q4).** LT and PNB are in scanner — HARD AVOID. RBI NBFC framework updated (small entities under Rs 1,000 cr exempted from registration, effective Jul 1 2026). SBIN Central Board meeting May 8 for Q4 results + dividend — event risk this week. TATAPOWER Q4 on May 12 — tradeable today, caution builds mid-week. ITC positive: SMIFS Buy target Rs 340, potential 17% cigarette price hike, call options at Rs 350 strike building.
+- Sector focus: Energy mixed (RELIANCE +2.54% May 4, analyst "Strong Buy", but elevated crude and MarketsMojo Sell grade); FMCG positive (ITC building momentum on price hike catalyst); Banking cautious (SBIN upcoming results May 8; ICICIBANK mixed analyst consensus but positive intraday); IT cautious (USD/INR tailwind but US Nasdaq barely moved)
+- Watchlist today: RELIANCE (LONG bias, score 2.68, top pick, no event today — require 2+ confirmations), ITC (LONG bias, score 1.77, gap +0.95%, price hike catalyst, SMIFS Buy), ICICIBANK (LONG/neutral, score 1.86, gap +0.07%, no event)
+- AVOID: LT (Q4 results TODAY), PNB (Q4 results TODAY), ADANIENT (SL gap-through Rs 18 on May 4, re-entry violation — ban until new week), INDUSINDBK (volatile history, momentum only 0.92 today), SBIN (results May 8 — binary risk this week), KOTAKBANK (gap -1.15%, lowest momentum)
+- Open bugs going into session: (1) premature EOD bug unresolved — bot may stop at ~10:35 AM, (2) single-confirmation rule not code-enforced, (3) partial qty exit bug in order_manager.py, (4) already_stopped_today veto not in code
+
+---
+
 ## 2026-05-04 Pre-Market Research
 - US overnight: SPX +0.08% (7,275.50) — nearly flat, broad-based but muted
 - Asia: SGX Nifty 24,208.50 (implies gap UP ~+0.88% vs NIFTY last close 23,997.55); Nikkei +0.38%; Hang Seng -1.28% (negative drag from HK)
