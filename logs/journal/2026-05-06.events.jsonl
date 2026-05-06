@@ -122,3 +122,12 @@
 {"ts": "2026-05-06T15:07:25+05:30", "type": "exit", "symbol": "TCS", "signal": "BUY", "strategy": "", "entry_price": 2500.0, "exit_price": 2500.0, "quantity": 10, "pnl": 0.0, "reason": "breakeven"}
 {"ts": "2026-05-06T15:18:48+05:30", "type": "exit", "symbol": "SUNPHARMA", "signal": "BUY", "strategy": "MULTI", "entry_price": 1844.918030855502, "exit_price": 1850.4, "quantity": 5, "pnl": 27.4098457224909, "reason": "End of day square-off"}
 {"ts": "2026-05-06T15:18:48+05:30", "type": "exit", "symbol": "HDFCBANK", "signal": "BUY", "strategy": "MULTI", "entry_price": 783.2019572372601, "exit_price": 795.95, "quantity": 1, "pnl": 12.748042762739942, "reason": "End of day square-off"}
+{"ts": "2026-05-06T15:23:28+05:30", "type": "exit", "symbol": "RELIANCE", "signal": "BUY", "strategy": "TEST", "entry_price": 2501.125, "exit_price": 2550.0, "quantity": 10, "pnl": 488.75, "reason": "target hit"}
+{"ts": "2026-05-06T15:23:28+05:30", "type": "exit", "symbol": "RELIANCE", "signal": "SELL", "strategy": "TEST", "entry_price": 2498.875, "exit_price": 2450.0, "quantity": 10, "pnl": 488.75, "reason": "target hit"}
+{"ts": "2026-05-06T15:23:28+05:30", "type": "exit", "symbol": "TCS", "signal": "BUY", "strategy": "TEST", "entry_price": 2501.125, "exit_price": 2550.0, "quantity": 5, "pnl": 244.375, "reason": "target"}
+{"ts": "2026-05-06T15:23:28+05:30", "type": "exit", "symbol": "RELIANCE", "signal": "BUY", "strategy": "TEST", "entry_price": 2501.125, "exit_price": 2501.125, "quantity": 6, "pnl": 0.0, "reason": "breakeven"}
+{"ts": "2026-05-06T15:23:28+05:30", "type": "exit", "symbol": "TCS", "signal": "BUY", "strategy": "TEST", "entry_price": 2501.125, "exit_price": 2550.0, "quantity": 10, "pnl": 488.75, "reason": "win"}
+{"ts": "2026-05-06T15:23:28+05:30", "type": "exit", "symbol": "INFY", "signal": "BUY", "strategy": "TEST", "entry_price": 2501.125, "exit_price": 2480.0, "quantity": 5, "pnl": -105.625, "reason": "loss"}
+{"ts": "2026-05-06T15:23:38+05:30", "type": "exit", "symbol": "RELIANCE", "signal": "BUY", "strategy": "", "entry_price": 2500.0, "exit_price": 2510.0, "quantity": 10, "pnl": 100.0, "reason": "target"}
+{"ts": "2026-05-06T15:23:39+05:30", "type": "exit", "symbol": "RELIANCE", "signal": "BUY", "strategy": "ORB", "entry_price": 2501.125, "exit_price": 2530.0, "quantity": 5, "pnl": 144.375, "reason": "test_exit"}
+{"ts": "2026-05-06T15:23:39+05:30", "type": "exit", "symbol": "TCS", "signal": "BUY", "strategy": "", "entry_price": 2500.0, "exit_price": 2500.0, "quantity": 10, "pnl": 0.0, "reason": "breakeven"}
