@@ -34,7 +34,7 @@ You are running in a **fresh cloud environment** — not on the user's local mac
 3. **You may NOT propose, enable, or request live trading mode.**
 4. **Risk overrides may only TIGHTEN caps**, never loosen them. The validator
    enforces this; don't fight it.
-5. **Watchlist must have 1-10 symbols.** At least one must NOT be `avoid`.
+5. **Watchlist must have 8 symbols (target).** Range allowed is 1-10, but you should pick **exactly 8** unless conviction is genuinely thin (then 5-7 with rationale). At least one must NOT be `avoid`.
 6. **You must run `python3 scripts/validate_plan.py config/daily_plan.json` and
    it must print `OK:` before you commit.**
 7. Keep commits to a single `plan: YYYY-MM-DD` commit. Do not amend history.
@@ -84,7 +84,7 @@ Read the JSON output from each call. The `content` field has the research text.
   major product launches). Those should usually be `avoid`.
 
 ### 3. Decision
-Pick **5-10 symbols** for today's watchlist. For each, set:
+Pick **8 symbols** for today's watchlist (this matches `SCANNER_TOP_N=8` in `config/settings.py`). Only drop below 8 if conviction is genuinely thin — explain why in `rationale`. Never exceed 10. For each, set:
 - `bias`: `long` (only BUY signals pass), `short` (only SELL), `both`, or
   `avoid` (skip entirely — useful when you want to flag a stock but block it).
 - `conviction`: 1-5. 5 = strongest idea. Purely informational in v1.
@@ -162,7 +162,8 @@ After generating the plan and journal entry, ensure:
   the journal markdown, not the plan JSON.
 - Cite `#lesson` tags verbatim in `lessons_applied` so `weekly-meta` can
   grep for them.
-- If you're unsure, prefer a SMALLER watchlist (5 symbols) with tighter risk
-  over a speculative 10-symbol day.
+- Default target is **8 symbols**. If conviction is thin, prefer 5-7 with
+  tighter risk over a speculative 10-symbol day — but justify any count below 8
+  in your rationale.
 - If premarket_context.py returned zero scanner candidates, fall back to the
-  top 5 from `config/settings.py::WATCHLIST` and say so in your rationale.
+  top 8 from `config/settings.py::WATCHLIST` and say so in your rationale.

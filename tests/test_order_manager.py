@@ -37,8 +37,15 @@ def _make_trade_signal(
 
 class TestPaperOrderPlacement:
 
-    def test_paper_order_placement(self, mock_order_manager):
+    @pytest.fixture(autouse=True)
+    def _deterministic(self, monkeypatch):
+        monkeypatch.setattr(settings, "PAPER_RANDOM_REJECTION_PCT", 0)
+        monkeypatch.setattr(settings, "PAPER_SIMULATE_PARTIAL_FILLS", False)
+
+    def test_paper_order_placement(self, mock_order_manager, monkeypatch):
         """Paper order is created with slippage applied to executed_price."""
+        # Force fixed-slippage path for deterministic assertion.
+        monkeypatch.setattr(settings, "PAPER_DYNAMIC_SLIPPAGE", False)
         om = mock_order_manager
         sig = _make_trade_signal(price=2500.0, quantity=10)
         order = om.place_order(sig)
@@ -54,8 +61,9 @@ class TestPaperOrderPlacement:
         expected_slippage = 2500.0 * (settings.PAPER_SLIPPAGE_PCT / 100)
         assert order.executed_price == pytest.approx(2500.0 + expected_slippage, rel=1e-6)
 
-    def test_paper_sell_order_slippage(self, mock_order_manager):
+    def test_paper_sell_order_slippage(self, mock_order_manager, monkeypatch):
         """SELL paper orders have slippage reducing the executed price."""
+        monkeypatch.setattr(settings, "PAPER_DYNAMIC_SLIPPAGE", False)
         om = mock_order_manager
         sig = _make_trade_signal(signal=Signal.SELL, price=2500.0, quantity=5)
         order = om.place_order(sig)
@@ -82,6 +90,11 @@ class TestPaperOrderPlacement:
 
 
 class TestPaperOrderClose:
+
+    @pytest.fixture(autouse=True)
+    def _deterministic(self, monkeypatch):
+        monkeypatch.setattr(settings, "PAPER_RANDOM_REJECTION_PCT", 0)
+        monkeypatch.setattr(settings, "PAPER_SIMULATE_PARTIAL_FILLS", False)
 
     def test_paper_order_close(self, mock_order_manager):
         """Closing a BUY order at a higher price produces positive P&L and sets is_open=False."""
@@ -112,6 +125,13 @@ class TestPaperOrderClose:
 
 
 class TestPartialClose:
+
+    @pytest.fixture(autouse=True)
+    def _deterministic(self, monkeypatch):
+        # Disable randomised paper-fill behaviours so partial_close maths
+        # is exact regardless of test execution order / RNG state.
+        monkeypatch.setattr(settings, "PAPER_RANDOM_REJECTION_PCT", 0)
+        monkeypatch.setattr(settings, "PAPER_SIMULATE_PARTIAL_FILLS", False)
 
     def test_partial_close(self, mock_order_manager):
         """Partial close reduces quantity and records the exit."""

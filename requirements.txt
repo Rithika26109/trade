@@ -1,4 +1,7 @@
-kiteconnect>=5.0.0
+# Pinned to <6 because src/auth/login.py monkey-patches internals
+# (KiteConnect._routes, KiteConnect.reqsession.headers). _make_enctoken_kite
+# probes these at runtime; bumping the major requires re-validating that.
+kiteconnect>=5.1,<6.0
 pandas>=2.0.0
 numpy>=1.24.0
 pandas-ta>=0.3.14b

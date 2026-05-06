@@ -261,6 +261,9 @@ class TestCircuitLimitRejection:
         monkeypatch.setattr(settings, "VOLATILITY_SCALING_ENABLED", False)
         monkeypatch.setattr(settings, "KELLY_ENABLED", False)
         monkeypatch.setattr(settings, "EQUITY_CURVE_TRADING_ENABLED", False)
+        # Disable multi-strategy confirmation gate so a single-strategy
+        # signal isn't rejected before the circuit-limit check is reached.
+        monkeypatch.setattr(settings, "MIN_CONFIRMATIONS", 1)
         om = OrderManager(kite=None); om.is_paper = True
         rm = RiskManager(om, db=None)
 

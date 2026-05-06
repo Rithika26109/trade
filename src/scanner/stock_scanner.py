@@ -88,9 +88,10 @@ class StockScanner:
         """Fetch NIFTY 50 return for relative strength comparison."""
         try:
             df = self.market_data.get_historical_data("NIFTY 50", interval="day", days=25)
-            if not df.empty and len(df) >= 20:
+            if not df.empty and len(df) >= 21:
+                # True 20-bar return; matches stock-side computation below.
                 self._nifty_return = (
-                    (df["close"].iloc[-1] / df["close"].iloc[-20] - 1) * 100
+                    (df["close"].iloc[-1] / df["close"].iloc[-21] - 1) * 100
                 )
         except Exception:
             self._nifty_return = None
@@ -132,15 +133,18 @@ class StockScanner:
         volatility_score = min(atr_pct, 4) if atr_pct >= 0.5 else 0
 
         # Momentum: 5-day and 20-day rate of change
-        roc_5 = (df["close"].iloc[-1] / df["close"].iloc[-5] - 1) * 100 if len(df) >= 5 else 0
-        roc_20 = (df["close"].iloc[-1] / df["close"].iloc[-20] - 1) * 100 if len(df) >= 20 else 0
+        # True N-bar return: close[-1] / close[-(N+1)] - 1.
+        # iloc[-N] is N-1 bars back, so a literal -5/-20 understates the
+        # window by one bar.
+        roc_5 = (df["close"].iloc[-1] / df["close"].iloc[-6] - 1) * 100 if len(df) >= 6 else 0
+        roc_20 = (df["close"].iloc[-1] / df["close"].iloc[-21] - 1) * 100 if len(df) >= 21 else 0
         momentum_score = abs(roc_5 * 0.6 + roc_20 * 0.4)  # Absolute value — we want movers
         momentum_score = min(momentum_score, 5)
 
         # Relative strength vs NIFTY
         rs_score = 0
-        if self._nifty_return is not None and len(df) >= 20:
-            stock_return = (df["close"].iloc[-1] / df["close"].iloc[-20] - 1) * 100
+        if self._nifty_return is not None and len(df) >= 21:
+            stock_return = (df["close"].iloc[-1] / df["close"].iloc[-21] - 1) * 100
             if self._nifty_return != 0:
                 rs_ratio = stock_return / abs(self._nifty_return) if self._nifty_return != 0 else 1
                 rs_score = min(max(rs_ratio, 0), 3)
@@ -209,10 +213,12 @@ class StockScanner:
             band = self.market_data.get_circuit_limits(symbol)
             if not band:
                 return False
-            # Use last-traded price via quote / LTP helpers
+            # market_data.get_ltp expects a list and returns a {symbol: price}
+            # dict. Passing a bare string silently iterates characters — fixed.
             ltp = None
             if hasattr(self.market_data, "get_ltp"):
-                ltp = self.market_data.get_ltp(symbol)
+                ltp_map = self.market_data.get_ltp([symbol]) or {}
+                ltp = ltp_map.get(symbol)
             if ltp is None or ltp <= 0:
                 return False
             lo, hi = band["lower"], band["upper"]

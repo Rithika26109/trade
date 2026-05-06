@@ -176,7 +176,8 @@ class ORBStrategy(BaseStrategy):
                 signal.confluence_score = conf.total
                 signal.confluence_details = conf.components
 
-            self._traded_today.add(symbol)
+            # NOTE: do NOT add to _traded_today here. The runtime calls
+            # mark_signal_executed() only after risk approval + order fill.
             return signal
 
         # ── BREAKDOWN BELOW (SELL) ──
@@ -227,7 +228,9 @@ class ORBStrategy(BaseStrategy):
                 signal.confluence_score = conf.total
                 signal.confluence_details = conf.components
 
-            self._traded_today.add(symbol)
+            # NOTE: see mark_signal_executed() — lock is set after fill,
+            # not at signal emission, so risk-rejected signals don't
+            # lock the symbol out for the day.
             return signal
 
         return self._hold(symbol, f"Price within range [{orb_low:.2f} - {orb_high:.2f}]")
@@ -264,3 +267,13 @@ class ORBStrategy(BaseStrategy):
     def get_range(self, symbol: str) -> dict | None:
         """Get the opening range for a symbol."""
         return self._opening_range.get(symbol)
+
+    def mark_signal_executed(self, signal: TradeSignal) -> None:
+        """Lock the symbol from further ORB entries today. Called by the
+        runtime only after risk approval AND order placement succeed."""
+        if signal.signal in (Signal.BUY, Signal.SELL):
+            today = settings.now_ist().date()
+            if self._traded_date != today:
+                self._traded_today.clear()
+                self._traded_date = today
+            self._traded_today.add(signal.symbol)

@@ -57,7 +57,14 @@ def detect_volatility_regime(df: pd.DataFrame) -> VolatilityRegime:
     if df.empty or len(df) < 5:
         return VolatilityRegime.NORMAL
 
-    lookback = getattr(settings, "VOL_REGIME_LOOKBACK_DAYS", 20)
+    # Lookback is in BARS (not days). Naming kept this way so a 15-min HTF
+    # frame uses ~25 bars/day. New setting takes precedence; fall back to
+    # the old VOL_REGIME_LOOKBACK_DAYS for backward compatibility.
+    lookback = getattr(
+        settings,
+        "VOL_REGIME_LOOKBACK_BARS",
+        getattr(settings, "VOL_REGIME_LOOKBACK_DAYS", 25),
+    )
     low_pct = getattr(settings, "VOL_REGIME_LOW_PCT", 33)
     high_pct = getattr(settings, "VOL_REGIME_HIGH_PCT", 67)
 
@@ -145,7 +152,10 @@ def detect_regime(df: pd.DataFrame) -> MarketRegime:
 
         return MarketRegime.RANGING
 
-    # ADX between ranging and trend thresholds — weak but directional
+    # ADX between ADX_RANGING and ADX_TREND — weak but directional.
+    # Intentional: short-TF ADX rarely exceeds 25 even in real trends, so
+    # this band is treated as weak TREND_UP/DOWN rather than RANGING.
+    # See tests/test_market_regime.py::test_weak_trend_*.
     return MarketRegime.TREND_UP if bullish_direction else MarketRegime.TREND_DOWN
 
 

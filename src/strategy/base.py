@@ -102,3 +102,14 @@ class BaseStrategy(ABC):
             reason=reason,
             strategy=self.name,
         )
+
+    def mark_signal_executed(self, signal: "TradeSignal") -> None:
+        """Hook called by the runtime AFTER a signal is risk-approved AND
+        an order placement succeeds. Strategies with one-shot semantics
+        (e.g. ORB: one trade per symbol per day) override this to flip
+        their "already traded" guard. Default is a no-op.
+
+        Calling this from inside `analyze()` is a bug: a risk-rejected
+        signal would otherwise lock the strategy out incorrectly.
+        """
+        return None

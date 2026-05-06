@@ -137,3 +137,21 @@ class StrategyOrchestrator(BaseStrategy):
                 symbol,
                 f"Conflicting: BUY from {buy_strats}, SELL from {sell_strats}"
             )
+
+    def mark_signal_executed(self, signal: TradeSignal) -> None:
+        """Forward execution confirmation to every member strategy that
+        contributed (the winner plus any agreeing strategies). Each
+        strategy decides via its override what to do (e.g. ORB locks the
+        symbol for the day).
+        """
+        names = set(getattr(signal, "confirming_strategies", []) or [])
+        if signal.strategy and signal.strategy != self.name:
+            names.add(signal.strategy)
+        for s in self.strategies:
+            if s.name in names:
+                try:
+                    s.mark_signal_executed(signal)
+                except Exception as e:
+                    logger.debug(
+                        f"[MULTI] {s.name}.mark_signal_executed failed: {e}"
+                    )

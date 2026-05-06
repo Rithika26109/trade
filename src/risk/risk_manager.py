@@ -570,12 +570,16 @@ class RiskManager:
                 f"fat-finger: notional Rs {notional:.0f} > cap Rs {notional_cap:.0f}"
                 f" ({max_notional_pct}% of capital)"
             )
-        # Risk cap = 2% of capital (hard, independent of risk_pct scaling)
+        # Risk cap (hard, independent of risk_pct scaling). Sourced from
+        # settings.FAT_FINGER_MAX_RISK_PCT — keep this, RISK_PER_TRADE_PCT,
+        # and validate_config()'s cross-check in sync.
         risk_amount = signal.quantity * signal.risk_per_share
-        risk_cap = self.capital * 0.02
+        ff_pct = getattr(settings, "FAT_FINGER_MAX_RISK_PCT", 2.0)
+        risk_cap = self.capital * (ff_pct / 100.0)
         if risk_amount > risk_cap:
             return (
-                f"fat-finger: trade risk Rs {risk_amount:.0f} > 2% cap Rs {risk_cap:.0f}"
+                f"fat-finger: trade risk Rs {risk_amount:.0f} > "
+                f"{ff_pct}% cap Rs {risk_cap:.0f}"
             )
         return None
 

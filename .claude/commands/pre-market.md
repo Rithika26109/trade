@@ -89,7 +89,7 @@ For each symbol on the watchlist:
 Help the user think through:
 - What does the NIFTY regime suggest? (Trending = look for breakouts, Ranging = be cautious)
 - Which sectors look strong based on overnight moves?
-- Suggest 3-5 stocks from the default watchlist in `memory/TRADING-STRATEGY.md`
+- Suggest 8 stocks from the default watchlist in `memory/TRADING-STRATEGY.md`
 
 ### 7. Market holiday check
 

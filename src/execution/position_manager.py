@@ -30,6 +30,16 @@ class PositionManager:
 
     def add_position(self, order: Order):
         """Track a new open position."""
+        # Snapshot the entry stop BEFORE any trailing logic can move it.
+        # `_check_partial_exit` and `_update_trailing_stop` both need the
+        # original entry-time risk to compute R-multiples; capturing here
+        # avoids the race where trailing-stop code runs before partial-exit
+        # and contaminates the "original" value.
+        if not hasattr(order, "_original_stop_loss") or order._original_stop_loss is None:
+            try:
+                order._original_stop_loss = order.stop_loss
+            except Exception:
+                pass
         self.open_positions.append(order)
         if self.db:
             try:

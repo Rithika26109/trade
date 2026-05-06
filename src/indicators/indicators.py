@@ -43,9 +43,15 @@ def add_macd(
         df["macd_histogram"] = float("nan")
         df["macd_signal"] = float("nan")
         return df
-    df["macd"] = macd.iloc[:, 0]  # MACD line
-    df["macd_histogram"] = macd.iloc[:, 1]  # Histogram
-    df["macd_signal"] = macd.iloc[:, 2]  # Signal line
+    # Look up by column-name prefix; positional access broke when pandas-ta
+    # bumped column ordering between versions.
+    cols = macd.columns.tolist()
+    macd_col = next((c for c in cols if c.startswith("MACD_")), None)
+    hist_col = next((c for c in cols if c.startswith("MACDh_")), None)
+    sig_col = next((c for c in cols if c.startswith("MACDs_")), None)
+    df["macd"] = macd[macd_col] if macd_col else float("nan")
+    df["macd_histogram"] = macd[hist_col] if hist_col else float("nan")
+    df["macd_signal"] = macd[sig_col] if sig_col else float("nan")
     return df
 
 
@@ -62,10 +68,16 @@ def add_bollinger_bands(
         df["bb_upper"] = float("nan")
         df["bb_bandwidth"] = float("nan")
         return df
-    df["bb_lower"] = bbands.iloc[:, 0]  # Lower band
-    df["bb_middle"] = bbands.iloc[:, 1]  # Middle band (SMA)
-    df["bb_upper"] = bbands.iloc[:, 2]  # Upper band
-    df["bb_bandwidth"] = bbands.iloc[:, 3] if bbands.shape[1] > 3 else None
+    # Column-name prefix lookup (pandas-ta returns BBL_, BBM_, BBU_, BBB_, BBP_).
+    cols = bbands.columns.tolist()
+    lower = next((c for c in cols if c.startswith("BBL_")), None)
+    middle = next((c for c in cols if c.startswith("BBM_")), None)
+    upper = next((c for c in cols if c.startswith("BBU_")), None)
+    bw = next((c for c in cols if c.startswith("BBB_")), None)
+    df["bb_lower"] = bbands[lower] if lower else float("nan")
+    df["bb_middle"] = bbands[middle] if middle else float("nan")
+    df["bb_upper"] = bbands[upper] if upper else float("nan")
+    df["bb_bandwidth"] = bbands[bw] if bw else float("nan")
     return df
 
 

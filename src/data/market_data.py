@@ -41,6 +41,11 @@ class MarketData:
     def __init__(self, kite: KiteConnect):
         self.kite = kite
         self._instruments_cache: dict[str, dict] = {}
+        # Tracks the calendar date the in-memory _instruments_cache was
+        # populated for. If a bot stays running across midnight the cache
+        # is auto-cleared on the next load_instruments() call so we don't
+        # serve yesterday's tokens on a day with corp-action symbol changes.
+        self._instruments_cache_date: object | None = None
         self._hist_rate_limiter = RateLimiter(max_calls=3, period=1.0)  # 3 req/s for historical
         self._api_rate_limiter = RateLimiter(max_calls=10, period=1.0)  # 10 req/s general
         # Cache for multi-day HTF frames keyed by (symbol, interval) → (date, df).
@@ -50,19 +55,65 @@ class MarketData:
     def load_instruments(self, exchange: str = "NSE"):
         """Load and cache instrument list for quick symbol→token lookup.
 
-        The enctoken auth method doesn't support the /instruments endpoint,
-        so we fetch the publicly available CSV from api.kite.trade instead.
-        Falls back to the kite API for standard auth setups.
+        Tries (in order):
+          1. Today's on-disk cache at data/cache/instruments_<exch>_<date>.csv
+          2. Public CSV from api.kite.trade (enctoken-friendly)
+          3. kite.instruments(exchange) (standard auth fallback)
+
+        The disk cache avoids re-pulling ~2 MB on every bot restart and
+        makes startup deterministic when the network is briefly unavailable.
         """
         import csv
         import io
         import requests as _requests
 
-        url = f"https://api.kite.trade/instruments/{exchange}"
-        try:
-            resp = _requests.get(url, timeout=30)
-            resp.raise_for_status()
-            reader = csv.DictReader(io.StringIO(resp.text))
+        cache_dir = settings.BASE_DIR / "data" / "cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        today_date = now_ist().date()
+        today = today_date.isoformat()
+        cache_path = cache_dir / f"instruments_{exchange}_{today}.csv"
+
+        # Day rollover: drop yesterday's in-memory entries before reloading
+        if (self._instruments_cache_date is not None
+                and self._instruments_cache_date != today_date):
+            self._instruments_cache = {
+                k: v for k, v in self._instruments_cache.items()
+                if not k.startswith(f"{exchange}:")
+            }
+        self._instruments_cache_date = today_date
+
+        # 1. Try today's disk cache
+        text: str | None = None
+        if cache_path.exists():
+            try:
+                text = cache_path.read_text()
+                logger.debug(f"Loaded {exchange} instruments from disk cache "
+                             f"({cache_path.name})")
+            except OSError as e:
+                logger.warning(f"Disk cache read failed ({e}); refetching")
+                text = None
+
+        # 2. Public CSV
+        if text is None:
+            url = f"https://api.kite.trade/instruments/{exchange}"
+            try:
+                resp = _requests.get(url, timeout=30)
+                resp.raise_for_status()
+                text = resp.text
+                # Persist for the rest of the day. Best-effort: tmp + rename
+                # so a half-written file isn't observed by a parallel loader.
+                try:
+                    tmp = cache_path.with_suffix(".csv.tmp")
+                    tmp.write_text(text)
+                    tmp.replace(cache_path)
+                except OSError as e:
+                    logger.debug(f"Could not persist instruments cache: {e}")
+            except Exception as e:
+                logger.warning(f"Public CSV fetch failed ({e}), trying kite API...")
+
+        # Parse the CSV path (cache or freshly fetched)
+        if text is not None:
+            reader = csv.DictReader(io.StringIO(text))
             count = 0
             for row in reader:
                 key = f"{exchange}:{row['tradingsymbol']}"
@@ -73,14 +124,15 @@ class MarketData:
                 row["lot_size"] = int(row["lot_size"] or 0)
                 self._instruments_cache[key] = row
                 count += 1
-            logger.info(f"Loaded {count} instruments from {exchange} (public CSV)")
-        except Exception as e:
-            logger.warning(f"Public CSV fetch failed ({e}), trying kite API...")
-            instruments = self.kite.instruments(exchange)
-            for inst in instruments:
-                key = f"{exchange}:{inst['tradingsymbol']}"
-                self._instruments_cache[key] = inst
-            logger.info(f"Loaded {len(instruments)} instruments from {exchange}")
+            logger.info(f"Loaded {count} instruments from {exchange}")
+            return
+
+        # 3. Final fallback: kite API
+        instruments = self.kite.instruments(exchange)
+        for inst in instruments:
+            key = f"{exchange}:{inst['tradingsymbol']}"
+            self._instruments_cache[key] = inst
+        logger.info(f"Loaded {len(instruments)} instruments from {exchange} (kite API)")
 
     def get_instrument_token(self, symbol: str, exchange: str = "NSE") -> int:
         """Get numeric instrument token for a symbol."""

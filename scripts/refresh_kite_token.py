@@ -24,12 +24,42 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
+import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
+
+
+def _wait_for_network(host: str = "kite.zerodha.com",
+                      max_wait: int = 600,
+                      interval: int = 30) -> bool:
+    """Block until DNS resolves `host`, or until `max_wait` seconds pass.
+
+    Returns True if the network is reachable, False otherwise.
+    Used to handle the case where launchd fires the job while the Mac
+    is awake but offline (e.g., laptop just opened, Wi-Fi not yet up).
+    """
+    waited = 0
+    while True:
+        try:
+            socket.gethostbyname(host)
+            if waited > 0:
+                print(f"[refresh_kite_token] network back after {waited}s",
+                      file=sys.stderr)
+            return True
+        except socket.gaierror:
+            if waited >= max_wait:
+                print(f"[refresh_kite_token] network wait gave up after "
+                      f"{waited}s (host={host})", file=sys.stderr)
+                return False
+            print(f"[refresh_kite_token] waiting for network ({host})… "
+                  f"slept {waited}s", file=sys.stderr)
+            time.sleep(interval)
+            waited += interval
 
 
 def _gh_available() -> bool:
@@ -69,6 +99,12 @@ def main() -> int:
     from src.auth.login import ZerodhaAuth
     from src.utils.logger import logger
 
+    # Wait for network in case launchd fired this job while the Mac is
+    # awake but DNS isn't ready yet (e.g., just-resumed lid, Wi-Fi handshake).
+    if not _wait_for_network():
+        _send_telegram("❌ Token refresh: no network after 10min wait")
+        return 1
+
     try:
         auth = ZerodhaAuth()
         kite = auth.login()
@@ -77,7 +113,10 @@ def main() -> int:
         _send_telegram(f"❌ 06:30 Token refresh FAILED: {e}")
         return 1
 
-    token = getattr(auth, "access_token", None) or kite.access_token  # type: ignore[attr-defined]
+    # Use auth.access_token only — kite.access_token is intentionally
+    # blanked by _make_enctoken_kite (we authenticate via enctoken header,
+    # not the official api_key:access_token scheme), so it would be empty.
+    token = getattr(auth, "access_token", None)
     if not token:
         print("[refresh_kite_token] login succeeded but no access_token found",
               file=sys.stderr)

@@ -41,6 +41,9 @@ def setup_logger():
         rotation="00:00",  # New file every day at midnight
         retention="30 days",
         compression="zip",
+        # enqueue=True moves disk I/O onto a background thread so a slow
+        # filesystem (or zip rotation) can't stall the trading loop.
+        enqueue=True,
     )
 
     # Trade-specific log file
@@ -54,6 +57,7 @@ def setup_logger():
         rotation="00:00",
         retention="90 days",
         filter=lambda record: "PAPER" in record["message"] or "LIVE" in record["message"],
+        enqueue=True,
     )
 
 

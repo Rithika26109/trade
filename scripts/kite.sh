@@ -168,23 +168,32 @@ cmd_order() {
   fi
 
   local order_type="MARKET"
-  local form_data="-d exchange=NSE -d tradingsymbol=${symbol} -d transaction_type=${txn_type} -d quantity=${qty} -d product=MIS -d validity=DAY"
+  # Build curl args as an array — avoids `eval` and quoting pitfalls if a
+  # symbol or numeric ever contains a metacharacter.
+  local -a form_args=(
+    -d "exchange=NSE"
+    -d "tradingsymbol=${symbol}"
+    -d "transaction_type=${txn_type}"
+    -d "quantity=${qty}"
+    -d "product=MIS"
+    -d "validity=DAY"
+  )
 
   if [[ -n "$price" && "$price" != "--confirm" ]]; then
     order_type="LIMIT"
-    form_data="${form_data} -d order_type=LIMIT -d price=${price}"
+    form_args+=(-d "order_type=LIMIT" -d "price=${price}")
   else
-    form_data="${form_data} -d order_type=MARKET"
+    form_args+=(-d "order_type=MARKET")
   fi
 
   # Add SEBI algo tag if set
   local algo_id="${ALGO_ID:-}"
   if [[ -n "$algo_id" ]]; then
-    form_data="${form_data} -d tag=${algo_id}"
+    form_args+=(-d "tag=${algo_id}")
   fi
 
   echo "── Place Order: $txn_type $symbol x$qty ($order_type) [mode=$MODE] ──"
-  eval kite_post "/orders/regular" "$form_data"
+  kite_post "/orders/regular" "${form_args[@]}"
 }
 
 cmd_cancel() {

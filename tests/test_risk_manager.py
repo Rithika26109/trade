@@ -136,9 +136,12 @@ class TestCircuitBreakers:
         result = rm.evaluate(sig)
         assert result is None, "5th position should be rejected"
 
-    def test_consecutive_loss_pause(self, mock_risk_manager):
+    def test_consecutive_loss_pause(self, mock_risk_manager, monkeypatch):
         """After MAX_CONSECUTIVE_LOSSES, the manager pauses trading."""
         rm = mock_risk_manager
+        # Make sure the "<45 min to session end" skip doesn't fire when
+        # the test runs after market hours.
+        monkeypatch.setattr(settings, "STOP_NEW_TRADES", "23:59")
 
         for _ in range(settings.MAX_CONSECUTIVE_LOSSES):
             rm.record_trade_result(-100)
@@ -170,9 +173,13 @@ class TestCircuitBreakers:
 
 class TestPositionSizing:
 
-    def test_position_size_risk_based(self, mock_risk_manager):
+    def test_position_size_risk_based(self, mock_risk_manager, monkeypatch):
         """Quantity = capital * risk% / risk_per_share (when value cap is not binding)."""
         rm = mock_risk_manager
+        # Pin risk% to 1.0 (paper default may be 3.0); fat-finger ceiling
+        # must stay >= risk% per validate_config().
+        monkeypatch.setattr(settings, "RISK_PER_TRADE_PCT", 1.0)
+        monkeypatch.setattr(settings, "FAT_FINGER_MAX_RISK_PCT", 3.0)
         # Disable all advanced multipliers for a clean test
         with (
             patch.object(rm, "_get_vix_multiplier", return_value=1.0),

@@ -75,6 +75,11 @@ class TradeDB:
                     opened_at TEXT NOT NULL
                 )
             """)
+            # ── Migration: add columns required to recover full position
+            # state after a crash. Without these, partial-exit accounting,
+            # trailing-stop ATR scaling, and SLM cancellation are broken
+            # for any position that survives a restart. ──
+            self._add_missing_open_position_columns(conn)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS daily_summary (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -100,7 +105,40 @@ class TradeDB:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(str(self.db_path))
+        # WAL gives concurrent reader (routine scripts, dashboards) +
+        # writer (the bot) without serialisation. synchronous=NORMAL is
+        # safe with WAL: a power-loss may lose the most recent commit but
+        # never corrupts the DB. PRAGMAs are idempotent and fast.
+        conn = sqlite3.connect(str(self.db_path), timeout=10.0)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA busy_timeout=5000")
+        except sqlite3.DatabaseError:
+            # Older sqlite or read-only fs: fall through to default mode.
+            pass
+        return conn
+
+    def _add_missing_open_position_columns(self, conn: sqlite3.Connection) -> None:
+        """Idempotent ALTER TABLE for fields needed to fully reconstruct
+        an Order on crash recovery. SQLite has no IF NOT EXISTS for
+        column adds, so we list the existing columns first."""
+        cur = conn.execute("PRAGMA table_info(open_positions)")
+        existing = {row[1] for row in cur.fetchall()}
+        wanted = {
+            "original_quantity": "INTEGER DEFAULT 0",
+            "entry_atr": "REAL DEFAULT 0",
+            "tick_size": "REAL DEFAULT 0.05",
+            "sl_order_id": "TEXT",
+            "original_stop_loss": "REAL DEFAULT 0",
+        }
+        for col, decl in wanted.items():
+            if col not in existing:
+                try:
+                    conn.execute(f"ALTER TABLE open_positions ADD COLUMN {col} {decl}")
+                except sqlite3.OperationalError as e:
+                    # Race with concurrent migration is harmless; log and continue.
+                    logger.debug(f"open_positions.{col} migrate skipped: {e}")
 
     def log_trade(self, order: Order):
         """Save a completed trade to the database."""
@@ -164,14 +202,21 @@ class TradeDB:
             )
 
     def save_open_position(self, order: Order):
-        """Persist an open position for crash recovery."""
+        """Persist an open position for crash recovery.
+
+        Saves all fields needed to reconstruct partial-exit accounting,
+        ATR-based trailing stops, tick-size rounding, and SLM order
+        management after a restart.
+        """
         with self._connect() as conn:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO open_positions
                 (order_id, symbol, exchange, signal, quantity, entry_price,
-                 stop_loss, target, strategy, reason, is_paper, opened_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 stop_loss, target, strategy, reason, is_paper, opened_at,
+                 original_quantity, entry_atr, tick_size, sl_order_id,
+                 original_stop_loss)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     order.order_id, order.symbol, order.exchange,
@@ -179,6 +224,11 @@ class TradeDB:
                     order.stop_loss, order.target, order.strategy,
                     order.reason, 1 if order.is_paper else 0,
                     settings.now_ist().isoformat(),
+                    getattr(order, "original_quantity", 0) or order.quantity,
+                    getattr(order, "entry_atr", 0.0) or 0.0,
+                    getattr(order, "tick_size", 0.05) or 0.05,
+                    getattr(order, "sl_order_id", None),
+                    getattr(order, "_original_stop_loss", None) or order.stop_loss,
                 ),
             )
 

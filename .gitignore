@@ -50,3 +50,6 @@ Thumbs.db
 
 # Backtest results (generated artifacts)
 backtest/results/
+
+# Runtime cache
+data/cache/

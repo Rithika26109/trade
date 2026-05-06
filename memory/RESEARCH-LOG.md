@@ -4,6 +4,41 @@ Daily market research, macro observations, and recurring patterns. Most recent f
 
 ---
 
+## 2026-05-06 Midday Update
+- Regime: Bot intraday regime = STRONG_TREND_UP (upgraded from daily plan RANGING by 11:58 AM)
+- SUNPHARMA (only trade): BUY 11 shares @1844.3 | SL 1818.4 | Target 1896.0 | Unrealized -Rs 12.94 (~-0.05R) | Stop safe, no trail needed yet
+- **RULE FLAG**: SUNPHARMA entered on 1 strategy (ORB) — violates 2+ confirmation rule; bot not enforcing MIN_CONFIRMATIONS in code yet
+- TATAPOWER: Consistent SELL signals from 9:30 AM onward (both RSI_EMA + VWAP_SUPERTREND) all blocked by long bias — stock has been BELOW VWAP all morning; long bias for today was wrong in hindsight
+- All banking stocks (HDFCBANK, ICICIBANK, AXISBANK): Below VWAP, inside ORB range, RSI 42–48; lunch lull — no signals
+- INFY: Below VWAP, no signal; RELIANCE, BPCL: no signals observed in log
+- **Bot counter shows 1/7 trades** — daily_plan.json override of max_trades=4 not being applied; bug to investigate
+- Afternoon watch: SUNPHARMA needs to hold above 1843 and push toward 1852+ for +1R move; if fails, SL at 1818.4 catches it
+- Lunch lull 12:00–1:30 PM: breakouts are low-reliability; best setups likely post-1:30 PM on institutional activity pickup
+
+## 2026-05-06 Pre-Market Research
+- US overnight: SPX +0.80% (7,259.22), NDQ +1.00% (25,326.13) — tech-led rally, broad risk-on; energy/materials weak
+- Asia: SGX Nifty 24,311.50 (+0.85%, +205 pts) → gap-UP ~+1% expected; Hang Seng +0.51% — broadly positive
+- India VIX: N/A (API unavailable)
+- NIFTY regime: RANGING (shifted from TREND_DOWN yesterday), ATR 1.49%, vol regime LOW — last close 24,032.8 (-0.35%); regime change is a positive signal
+- FII/DII (May 5): DII bought Rs 2,602 cr; FII sold Rs 3,621 cr — net FII selling continues, DII absorbing; net flow negative but DII support cushioning
+- USD/INR: Not confirmed today (API) — prior trend: rupee weak ~95
+- Crude (Brent): $108.05 (-1.66%) — falling crude is POSITIVE for India macro; eases inflation, benefits aviation, logistics, FMCG sectors; ONGC/BPCL margin slightly impacted
+- Gold: $4,624 (+1.50%) — rising safe-haven demand; geopolitical uncertainty persists (Middle East, Strait of Hormuz)
+- Key news: No binary events in core watchlist today. Bajaj Auto, Blue Star, Godrej Consumer, KPIT, Polycab, Shree Cement have Q4 results today — NOT in watchlist. TATAPOWER results May 12 — binary risk building mid-week. SBIN Central Board May 8 (2 days away). Semiconductor projects approved (Gujarat Rs 3,936 cr). Mission Cotton Productivity Rs 5,600 cr — minor positive for agri sector.
+- SUNPHARMA: Major acquisition — Organon & Co for $11.75B enterprise value; lenders exploring $3-4B financing (bond swaps + offshore loans). No event risk today but ongoing financing risk creates headline uncertainty.
+- ITC: Trading above 5/20/50-day MAs; call options accumulating at Rs 315/320 strike (May 26 expiry) — market expects a rally. Cost efficiency strategy (no price hikes yet). Positive setup.
+- Sector focus: IT positive (US Nasdaq +1% tailwind, USD/INR weak); Energy mixed-positive (crude falling = BPCL/RELIANCE downstream margins improve); Pharma watch (SUNPHARMA acquisition newsflow); Banking mixed (FII selling ongoing, SEBI warning to ICICIBANK, SBIN results in 2 days)
+- Watchlist today: RELIANCE (score 2.32, LONG bias, no event, crude falling = downstream positive), TATAPOWER (score 2.14, LONG bias, World Bank $515M Bhutan project funded — positive, but results May 12), SUNPHARMA (score 2.10, neutral bias, acquisition news, tradeable with awareness), ITC (score 1.76, LONG bias, technicals strong, options sentiment positive)
+- BPCL: Score 1.96, price 298.5 (-0.48% gap). Crude -1.66% today = better refining margins. No binary events. Tradeable with 2+ confirmations.
+- KOTAKBANK: Results May 2 — stock fell 5% on May 4 post-Q4. Full-year FY26 profit -15%, NIM compressed 4.97%→4.67%. Negative sentiment. AVOID — selling pressure ongoing.
+- BHARTIARTL: Q4 results May 13 — one week away, binary risk building. Tradeable today but cautiously. No event today.
+- ITC: Q4 results timing uncertain — expected ~May 5-14 range. Gemini found no confirmed announcement. Treat as potential binary event risk until confirmed. AVOID until results confirmed.
+- ICICIBANK: SEBI administrative warning May 4 (depository, no material impact stated). ESOP allotment May 5. Strong Q4 done (Apr 18). Neutral-cautious today; tradeable if 2+ confirmations.
+- AVOID: PNB (3 SL hits yesterday, OUTSIDE NIFTY 50 universe), ADANIENT (SL gap-through May 4, re-entry violations May 4+5 — ban until new week), SBIN (results May 8 — binary risk in 2 days), INDUSINDBK (volatile history, multiple SL hits across sessions), ETERNAL (outside traditional NIFTY 50 target universe), KOTAKBANK (post-results selling pressure, NIM concerns), ITC (Q4 timing uncertain — potential binary event risk)
+- Open bugs going into session: (1) `already_stopped_today` veto still not in code, (2) single-confirmation rule still not code-enforced, (3) partial qty exit bug in order_manager.py, (4) scanner allowlist not filtering out-of-universe stocks (PNB was traded yesterday despite being outside defined universe)
+
+---
+
 ## 2026-05-05 Midday Update
 - Regime remains TREND_DOWN, vol regime LOW, VIX NORMAL (API still unavailable)
 - Bot healthy: running in paper mode since 09:05 IST (PID 90522), no premature EOD today

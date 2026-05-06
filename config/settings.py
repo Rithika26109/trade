@@ -257,7 +257,11 @@ SCANNER_MAX_SPREAD_BPS = 5.0           # max (ask-bid)/mid in basis points; 0 di
 
 # ── Phase 3C: Volatility Regime ──
 ENABLE_VOLATILITY_REGIME = True
-VOL_REGIME_LOOKBACK_DAYS = 20          # ATR% percentile window
+VOL_REGIME_LOOKBACK_BARS = 25          # ATR% percentile window in BARS
+                                       # (~1 day on 15-min HTF). The old
+                                       # VOL_REGIME_LOOKBACK_DAYS was a
+                                       # misnomer — same semantics.
+VOL_REGIME_LOOKBACK_DAYS = VOL_REGIME_LOOKBACK_BARS  # back-compat alias
 VOL_REGIME_LOW_PCT = 33                # <=33rd pctile = LOW
 VOL_REGIME_HIGH_PCT = 67               # >=67th pctile = HIGH ; else NORMAL
 
@@ -275,6 +279,11 @@ CORRELATION_LOOKBACK_DAYS = 20
 KELLY_USE_DB_HISTORY = True            # include DB-closed trades in Kelly
 COSTS_ROUND_TRIP_BPS = 15.0             # ~0.15% round-trip (brokerage+STT+GST+stamps+slippage)
 FAT_FINGER_MAX_NOTIONAL_PCT = 50.0     # absolute hard cap notional % of capital
+# Hard cap on per-trade rupee risk as % of capital. Applied on top of
+# RISK_PER_TRADE_PCT so a config typo can never push live risk above
+# this. MUST be >= RISK_PER_TRADE_PCT (validated in validate_config).
+# Tighten to 2.0 (or lower) before going live.
+FAT_FINGER_MAX_RISK_PCT = 3.0
 PERSIST_INTRADAY_HWM = True            # persist HWM + daily_loss across restart
 
 # ── Phase 3D: ML filter (opt-in, not implemented yet) ──
@@ -298,29 +307,39 @@ LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 # ── Timezone ──
 IST = ZoneInfo("Asia/Kolkata")
 
-# ── Market Holidays 2026 (NSE) ──
-# Update this list annually from NSE website
+# ── Market Holidays (NSE) ──
+# Update annually from NSE (https://www.nseindia.com/resources/exchange-communication-holidays).
+# Bot raises at startup if the current year has no entries — protects
+# against silently trading on every holiday after the list goes stale.
+MARKET_HOLIDAYS_BY_YEAR: dict[int, list[str]] = {
+    2026: [
+        "2026-01-26",  # Republic Day
+        "2026-03-10",  # Maha Shivaratri
+        "2026-03-17",  # Holi
+        "2026-03-30",  # Id-Ul-Fitr (Eid)
+        "2026-04-02",  # Ram Navami
+        "2026-04-03",  # Mahavir Jayanti
+        "2026-04-14",  # Dr. Ambedkar Jayanti
+        "2026-05-01",  # Maharashtra Day
+        "2026-06-05",  # Id-Ul-Zuha (Bakri Eid)
+        "2026-07-06",  # Muharram
+        "2026-08-15",  # Independence Day
+        "2026-08-19",  # Janmashtami
+        "2026-09-04",  # Milad-Un-Nabi
+        "2026-10-02",  # Mahatma Gandhi Jayanti
+        "2026-10-20",  # Dussehra
+        "2026-10-21",  # Dussehra (next day)
+        "2026-11-09",  # Diwali (Laxmi Puja)
+        "2026-11-10",  # Diwali (Balipratipada)
+        "2026-11-30",  # Guru Nanak Jayanti
+        "2026-12-25",  # Christmas
+    ],
+}
+
+# Flat set used by is_market_day(); kept for backward compatibility with
+# any caller that imports the old name.
 MARKET_HOLIDAYS = [
-    "2026-01-26",  # Republic Day
-    "2026-03-10",  # Maha Shivaratri
-    "2026-03-17",  # Holi
-    "2026-03-30",  # Id-Ul-Fitr (Eid)
-    "2026-04-02",  # Ram Navami
-    "2026-04-03",  # Mahavir Jayanti
-    "2026-04-14",  # Dr. Ambedkar Jayanti
-    "2026-05-01",  # Maharashtra Day
-    "2026-06-05",  # Id-Ul-Zuha (Bakri Eid)
-    "2026-07-06",  # Muharram
-    "2026-08-15",  # Independence Day
-    "2026-08-19",  # Janmashtami
-    "2026-09-04",  # Milad-Un-Nabi
-    "2026-10-02",  # Mahatma Gandhi Jayanti
-    "2026-10-20",  # Dussehra
-    "2026-10-21",  # Dussehra (next day)
-    "2026-11-09",  # Diwali (Laxmi Puja)
-    "2026-11-10",  # Diwali (Balipratipada)
-    "2026-11-30",  # Guru Nanak Jayanti
-    "2026-12-25",  # Christmas
+    d for year_list in MARKET_HOLIDAYS_BY_YEAR.values() for d in year_list
 ]
 
 
@@ -330,11 +349,22 @@ def now_ist() -> datetime:
 
 
 def is_market_day() -> bool:
-    """Check if today is a trading day (not weekend or holiday)."""
+    """Check if today is a trading day (not weekend or holiday).
+
+    Raises ``RuntimeError`` if the current year is missing from
+    ``MARKET_HOLIDAYS_BY_YEAR`` — better to halt than silently treat
+    every holiday as a trading day.
+    """
     today = now_ist().date()
+    if today.year not in MARKET_HOLIDAYS_BY_YEAR:
+        raise RuntimeError(
+            f"MARKET_HOLIDAYS_BY_YEAR has no entries for {today.year}. "
+            "Update config/settings.py from the NSE holiday calendar "
+            "before trading."
+        )
     if today.weekday() >= 5:  # Saturday=5, Sunday=6
         return False
-    if str(today) in MARKET_HOLIDAYS:
+    if str(today) in MARKET_HOLIDAYS_BY_YEAR[today.year]:
         return False
     return True
 
@@ -365,6 +395,18 @@ def validate_config():
         errors.append(f"MAX_DAILY_LOSS_PCT should be 1.0-10.0, got {MAX_DAILY_LOSS_PCT}")
     if INITIAL_CAPITAL <= 0:
         errors.append(f"INITIAL_CAPITAL must be positive, got {INITIAL_CAPITAL}")
+
+    # Cross-check: RISK_PER_TRADE_PCT must not exceed FAT_FINGER cap, else
+    # every well-sized signal at RISK_PER_TRADE_PCT will be silently
+    # rejected by the fat-finger guard, which destroys Kelly's
+    # win/loss distribution (truncated wins, full losses).
+    if RISK_PER_TRADE_PCT > FAT_FINGER_MAX_RISK_PCT:
+        errors.append(
+            f"RISK_PER_TRADE_PCT ({RISK_PER_TRADE_PCT}) exceeds "
+            f"FAT_FINGER_MAX_RISK_PCT ({FAT_FINGER_MAX_RISK_PCT}). "
+            "Either lower RISK_PER_TRADE_PCT or raise the fat-finger cap "
+            "intentionally — they MUST be consistent."
+        )
 
     # Check time ordering
     times = [MARKET_OPEN, TRADING_START, STOP_NEW_TRADES, FORCE_SQUARE_OFF]

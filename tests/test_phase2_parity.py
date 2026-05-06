@@ -123,7 +123,18 @@ class TestORBTradedGuard:
         sig1 = strat.analyze(df, "RELIANCE")
         assert sig1.signal == Signal.BUY
 
-        # A second call on the same session must be suppressed.
+        # Pre-fix bug: analyze() locked the symbol on emission, so a
+        # risk-rejected signal would silently kill the strategy for the
+        # day. New contract: emission alone does NOT lock — the runtime
+        # must explicitly confirm execution via mark_signal_executed().
+        # So a second analyze() before any execution must still emit.
+        sig_repeat = strat.analyze(df, "RELIANCE")
+        assert sig_repeat.signal == Signal.BUY, (
+            "ORB must keep emitting until execution is confirmed"
+        )
+
+        # Now confirm execution; subsequent analyze() must HOLD.
+        strat.mark_signal_executed(sig1)
         sig2 = strat.analyze(df, "RELIANCE")
         assert sig2.signal == Signal.HOLD
         assert "already traded" in sig2.reason.lower()

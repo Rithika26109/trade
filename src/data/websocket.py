@@ -6,7 +6,6 @@ Stream live tick data from Zerodha via KiteTicker WebSocket.
 
 import threading
 import time
-from collections import defaultdict
 from typing import Callable
 
 from kiteconnect import KiteTicker
@@ -27,6 +26,12 @@ class TickerManager:
         self._connected = False
         self._last_tick_ts: float = 0.0  # heartbeat monitor
         self._thread: threading.Thread | None = None
+        # Default subscribe mode in case _on_connect fires before subscribe()
+        # was ever called (transient — e.g., WS auto-reconnect during init).
+        self._subscribe_mode = self.kws.MODE_QUOTE
+        # Lock guards _latest_ticks and the callback lists since they're
+        # written from the KiteTicker WS thread and read from main thread.
+        self._lock = threading.Lock()
 
         # Wire up KiteTicker callbacks
         self.kws.on_ticks = self._on_ticks
@@ -44,6 +49,11 @@ class TickerManager:
         Args:
             tokens: List of instrument tokens
             mode: "ltp" (price only), "quote" (OHLC+vol), "full" (everything+depth)
+
+        Threading: callbacks (`on_tick`, `on_order_update`) and the initial
+        `subscribe(...)` should be registered/called from the main thread
+        BEFORE `start()`. Adding subscriptions after `start()` is safe but
+        re-registering callback lists from multiple threads is not.
         """
         self._subscribed_tokens = tokens
         mode_map = {
@@ -59,13 +69,15 @@ class TickerManager:
 
     def on_tick(self, callback: Callable):
         """Register a callback function that receives tick data."""
-        self._callbacks.append(callback)
+        with self._lock:
+            self._callbacks.append(callback)
 
     def on_order_update(self, callback: Callable):
         """Register a callback that receives broker order updates
         (SLM triggers, rejections, fills). Callback receives the raw
         KiteTicker order-update dict."""
-        self._order_update_callbacks.append(callback)
+        with self._lock:
+            self._order_update_callbacks.append(callback)
 
     def seconds_since_last_tick(self) -> float:
         """Return how long since the most recent tick. 0 if never received."""
@@ -75,14 +87,16 @@ class TickerManager:
 
     def get_ltp(self, token: int) -> float | None:
         """Get the latest price for an instrument token."""
-        tick = self._latest_ticks.get(token)
+        with self._lock:
+            tick = self._latest_ticks.get(token)
         if tick:
             return tick.get("last_price")
         return None
 
     def get_tick(self, token: int) -> dict | None:
         """Get the latest full tick data for an instrument token."""
-        return self._latest_ticks.get(token)
+        with self._lock:
+            return self._latest_ticks.get(token)
 
     def start(self, threaded: bool = True):
         """Start the WebSocket connection."""
@@ -102,12 +116,15 @@ class TickerManager:
     def _on_ticks(self, ws, ticks: list[dict]):
         """Handle incoming tick data."""
         self._last_tick_ts = time.time()
-        for tick in ticks:
-            token = tick["instrument_token"]
-            self._latest_ticks[token] = tick
+        with self._lock:
+            for tick in ticks:
+                token = tick["instrument_token"]
+                self._latest_ticks[token] = tick
+            callbacks = list(self._callbacks)
 
-        # Notify all registered callbacks
-        for callback in self._callbacks:
+        # Notify callbacks outside the lock so a slow consumer can't block
+        # the next tick batch from being recorded.
+        for callback in callbacks:
             try:
                 callback(ticks)
             except Exception as e:
@@ -115,7 +132,9 @@ class TickerManager:
 
     def _on_order_update(self, ws, data):
         """KiteTicker order-update hook. Fans out to registered listeners."""
-        for cb in self._order_update_callbacks:
+        with self._lock:
+            callbacks = list(self._order_update_callbacks)
+        for cb in callbacks:
             try:
                 cb(data)
             except Exception as e:
