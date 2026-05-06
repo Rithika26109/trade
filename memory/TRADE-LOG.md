@@ -137,3 +137,20 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 - Quote API: /oms/quote returning "Bad Request" — likely requires api.kite.trade endpoint
 
 _No trades recorded yet. Run /daily-summary after your first trading session._
+
+## 2026-05-06 (Wednesday) — EOD
+- Regime: STRONG_TREND_UP (upgraded from RANGING by 11:58 AM) | VIX: NORMAL (API unavailable)
+- Trades: 2 | Wins: 2 | Losses: 0 | Win Rate: 100% (partial exits)
+- P&L: +Rs 40.16 (paper capital: ~Rs 98,213.13)
+- Key trades: BUY SUNPHARMA @1844.3 → 1850.4 +Rs 27.41 (EOD, 5/11 shares, ORB — 1-strat violation), BUY HDFCBANK @782.9 → 795.95 +Rs 12.75 (EOD, 1/51 shares, ORB+VWAP_ST ✓ — 2-strat compliant)
+- Notes: TEST unit-test events polluted events file — reported pnl Rs 23,197 is invalid; real P&L is +Rs 40.16. 13 TATAPOWER SELL bias vetoes blocked what would have been profitable shorts (stock below VWAP all morning; long bias was wrong). Partial qty exit bug persists: HDFCBANK 50/51 shares unaccounted, SUNPHARMA 6/11 unaccounted. PNB and SBIN hard blocks held — no events.
+
+## 2026-05-06 (Wednesday) — Opening
+- NIFTY expected open: ~+0.9% gap-up (SGX Nifty +205pts +0.85% pre-open)
+- Key gaps pre-market: RELIANCE -0.21% (crude tailwind offsets), TATAPOWER -0.08%, BPCL -0.48%, HDFCBANK -0.64%, ICICIBANK -0.54%, AXISBANK -0.56%, INFY -0.08% (NASDAQ+1% tailwind), SUNPHARMA volatile (Organon deal)
+- Bot status: RUNNING (paper mode, PID=bot.pid, log=bot-2026-05-06.log confirmed 9:15 AM)
+- Watchlist: RELIANCE, TATAPOWER, BPCL, SUNPHARMA, HDFCBANK, ICICIBANK, AXISBANK, INFY (8 symbols)
+- Hard blocks: PNB (outside universe), SBIN (results May 8)
+- Risk overrides: max_trades=4, risk_per_trade=1.0%, max_positions=2
+- ORB range: Collecting 09:15–09:30, breakout scan active from 09:30
+- Quote API: enctoken limitation — live quotes via OMS unavailable (bot polls candle API directly)
