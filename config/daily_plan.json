@@ -1,86 +1,73 @@
 {
-  "date": "2026-05-06",
+  "date": "2026-05-07",
   "version": 1,
-  "generated_at": "2026-05-06T08:55:00+05:30",
+  "generated_at": "2026-05-07T08:55:00+05:30",
   "regime_hint": {
-    "direction": "RANGING",
+    "direction": "TRENDING_UP",
     "volatility": "LOW",
-    "notes": "NIFTY closed at 24,032.8 (-0.35%), regime shifted TREND_DOWN→RANGING — a positive transition. SGX Nifty +205pts (+0.85%) implies ~+1% gap-up open. US: SPX +0.8%, Nasdaq +1.0% (tech-led). Crude Brent -1.66% ($108.05) is today's primary India macro catalyst. FII net sold Rs 3,621 cr; DII bought Rs 2,603 cr — DII absorbing. VIX unavailable; vol regime LOW from candle data. ATR 1.49%. Treat as RANGING with a mild long bias from gap-up; do not treat as confirmed TRENDING_UP until NIFTY holds above pre-open high through 09:45."
+    "notes": "Strong gap-up day. SGX Nifty 24,550 (+1.45%) on US-Iran peace-deal hopes. US: SPX +1.5% (7,365), Nasdaq +2.0% (25,839). Asia: Nikkei +5.4% to ATH 62,720, Hang Seng +1.21%. NIFTY closed 24,330.95 (+1.24%) yesterday. Daily regime tag is RANGING, ATR 1.47%, vol LOW; cross-asset cues all point TRENDING_UP into the open. DII bought Rs 6,837 cr May 6 vs FII -Rs 5,835 cr (net +Rs 1,002 cr). Crude rebounding modestly to $101.6 (+0.36%) is a marginal headwind for energy importers. India VIX API still down. Expect bot to upgrade to STRONG_TREND_UP early."
   },
   "risk_overrides": {
-    "max_trades": 4,
+    "max_trades": 5,
     "risk_per_trade_pct": 1.0,
     "max_open_positions": 2
   },
   "watchlist": [
     {
+      "symbol": "SUNPHARMA",
+      "bias": "both",
+      "conviction": 4,
+      "notes": "Scanner #1 (2.32). At 52-week high; Nifty Pharma at fresh 52w high. Organon $11.75B deal still headline-active (post-acq net debt/EBITDA ~2.3x). Q4 results May 21 — outside binary window. Gap +0.89%. Trade either side on 2+ confirmations."
+    },
+    {
       "symbol": "RELIANCE",
       "bias": "long",
       "conviction": 4,
-      "notes": "#1 scanner (2.318). Crude -1.66% directly expands downstream O2C margins. Earnings estimates revised up 14-31% YoY (Zacks, May 4). Gap -0.21% (benign). Require 2+ confirmations. Invalidated if NIFTY fails gap-up and RELIANCE opens below 1455."
-    },
-    {
-      "symbol": "TATAPOWER",
-      "bias": "long",
-      "conviction": 3,
-      "notes": "#2 scanner (2.142). World Bank $515M financing for Bhutan hydro JV — positive catalyst confirmed. No event today. Results May 12 = binary risk building mid-week; caution beyond Thursday. Invalidated below 438."
-    },
-    {
-      "symbol": "BPCL",
-      "bias": "long",
-      "conviction": 3,
-      "notes": "#6 scanner (1.963). Direct beneficiary of crude -1.66% — refining margin expansion. No binary events today. Gap -0.48%. Require 2+ confirmations; crude-driven days can reverse fast. Invalidated if crude rebounds intraday."
-    },
-    {
-      "symbol": "SUNPHARMA",
-      "bias": "both",
-      "conviction": 3,
-      "notes": "#4 scanner (2.096). Organon acquisition ($11.75B) ongoing — headline risk persists but initial -7% gap absorption complete. High vol/momentum. Score elevated due to ATR. No event today. Trade both sides on 2+ confirmations; avoid oversized positions due to acquisition uncertainty."
+      "notes": "Scanner #5 (2.07). Carry from May 6 (no entry triggered). LEO-satellite venture vs Starlink — long-term positive headline. Q4 profit -12.55% YoY is the offsetting drag. Gap -0.04%. MarketsMOJO upgraded Sell→Hold. Invalidate if opens below VWAP and holds through 09:45."
     },
     {
       "symbol": "HDFCBANK",
+      "bias": "long",
+      "conviction": 4,
+      "notes": "Strongest single-name catalyst today: RBI approved (May 6) HDFC Bank group entities holding up to 9.95% in ICICIBANK + KOTAKBANK. Legal review cleared CEO reappointment overhang. Stock surged 3%+ May 6. Gap +0.37%. Banking exposure capped to max_open_positions=2."
+    },
+    {
+      "symbol": "INFY",
       "bias": "both",
       "conviction": 3,
-      "notes": "CEO bribery case quashed by Bombay HC (May 5) — removes overhang. Strong institutional participation May 4 (+1.60%). Gap -0.64%. Score 1.591 is lower but legal catalyst justifies inclusion. Invalidated if broader banking sector sells off on FII pressure."
+      "notes": "IT tailwind from Nasdaq +2%. USD/INR weak. Gemini flags broader IT-sector weakness on May 5; no fresh catalyst. Gap +0.76%. ORB break in either direction with 2+ confirmations."
+    },
+    {
+      "symbol": "AXISBANK",
+      "bias": "both",
+      "conviction": 3,
+      "notes": "Outperformed banking sector +3.2% on May 6, approaching 20-DMA resistance. Weekly -3.71% tempers conviction. No event. Gap +1.21%. Counts toward 2-position banking cap with HDFCBANK / ICICIBANK."
     },
     {
       "symbol": "ICICIBANK",
       "bias": "both",
       "conviction": 2,
-      "notes": "#12 scanner (1.849). Strong Q4 done (Apr 18, profit +8.5%, NPA 0.33%). SEBI administrative warning May 4 — non-material per disclosure (depository participant, no trading restriction). Gap -0.54%. Require 2+ confirmations given SEBI headline risk."
-    },
-    {
-      "symbol": "AXISBANK",
-      "bias": "both",
-      "conviction": 2,
-      "notes": "#11 scanner (1.852). No binary events. Monthly return +6.44% strong; weekly -3.71% tempers enthusiasm. Banking sector benefits from gap-up macro. Gap -0.56%. Clean setup with no pending events."
-    },
-    {
-      "symbol": "INFY",
-      "bias": "both",
-      "conviction": 2,
-      "notes": "#13 scanner (1.786). US Nasdaq +1.0% overnight = IT sector tailwind. USD/INR weak (~95) benefits IT exporters. No events until July 16. Put activity at Rs 1,140 strike mildly cautionary — watch for support. Require 2+ confirmations."
-    },
-    {
-      "symbol": "PNB",
-      "bias": "avoid",
-      "conviction": 1,
-      "notes": "HARD BLOCK — outside defined NIFTY 50 target universe (#lesson 2026-05-05). 3 consecutive SL hits yesterday (-Rs 1,039 net on PNB alone). already_stopped_today veto not yet in code — manual block via watchlist bias until code fix."
+      "notes": "Mixed: HDFCBANK stake-acquisition headline is a positive overhang for ICICIBANK demand, but stock fell 1.21% May 5 and SEBI admin warning (May 4) lingers. Gap +0.86%. Lower conviction; 2+ confirmations required."
     },
     {
       "symbol": "SBIN",
       "bias": "avoid",
       "conviction": 1,
-      "notes": "HARD BLOCK — Q4 results + dividend announcement May 8 (2 days away). Binary event risk building. SEBI warning sector pressure. Do not trade until post-results."
+      "notes": "HARD BLOCK — Q4 results + dividend tomorrow (May 8). Binary event in <24h. #lesson 2026-04-30 applied (ADANIENT binary event was traded despite pre-market flag — must hard-block, not flag)."
+    },
+    {
+      "symbol": "TATAPOWER",
+      "bias": "avoid",
+      "conviction": 1,
+      "notes": "HARD BLOCK — Q4 results May 12 (5 days). Yesterday's long bias blocked 13 profitable SELL signals; stock was below VWAP all day (#lesson 2026-05-06). Drop entirely until post-results."
     }
   ],
-  "rationale": "Gap-UP ~+1% expected (SGX Nifty +205pts). NIFTY regime shifted TREND_DOWN→RANGING — positive transition. Crude oil -1.66% is today's primary macro catalyst: benefits RELIANCE (O2C downstream) and BPCL (refining). FII net sold Rs 3,621 cr but DII absorbed Rs 2,603 cr — market not in freefall. Vol LOW, ATR 1.49%. Top 8 tradeable picks skew long given gap-up setup. Hard blocks: PNB (outside universe, 3x SL yesterday) and SBIN (results May 8). Excluded: ETERNAL (outside universe), KOTAKBANK (post-results NIM selling), BHARTIARTL (Q4 results imminent per Gemini — down 4.27% in 3 days), ADANIENT (ongoing re-entry behavioral risk), INDUSINDBK (volatile, multiple SL hits), ITC (Q4 timing uncertain). Risk tightened after May 5 worst day (-Rs 1,154): max_trades 4 vs 7 default, risk_per_trade 1.0% vs 3.0% default, max_positions 2 vs 4 default.",
+  "rationale": "Gap-up day with broad global risk-on (US-Iran peace hopes). 6 tradeable + 2 hard-blocks (SBIN binary tomorrow, TATAPOWER binary in 5 days plus failed long bias yesterday). Risk caps held at yesterday's level (5 / 1.0% / 2) — partial-exit bug in order_manager.py remains unfixed, so banking exposure intentionally capped via max_open_positions=2. ORB is the primary setup on a gap-up day. Strongest single-name catalyst is HDFCBANK (RBI stake approval + legal overhang lifted). Pharma sector at fresh 52w highs gives SUNPHARMA both-direction tradeability. RELIANCE carried from yesterday (no entry generated). Every entry must clear the MIN_CONFIRMATIONS gate (now in code per d2a2908).",
   "lessons_applied": [
-    "#lesson 2026-05-05: PNB is outside the defined NIFTY 50 target universe — hard-blocked today via avoid bias; scanner allowlist code fix still pending",
-    "#lesson 2026-05-05: already_stopped_today veto not in code — manually blocked PNB to prevent further same-stock re-entry",
-    "#lesson 2026-04-30: Binary-event block — SBIN (results May 8) and BHARTIARTL (Q4 results imminent) both excluded",
-    "#lesson 2026-04-29: Require 2+ strategy confirmations for all entries — all tradeable symbols carry this expectation in notes",
-    "#lesson 2026-05-04: Re-entry on same stock after SL hit — ADANIENT excluded despite new-week eligibility due to ongoing behavioral risk",
-    "#lesson 2026-W18 (promoted): Daily regime is one input, not a directional commitment — RANGING does not prevent long entries if individual stock signals confirm on 2+ strategies"
+    "#lesson 2026-05-06: TATAPOWER long bias blocked 13 profitable SELL signals — applied as hard avoid (results May 12 also bars re-entry).",
+    "#lesson 2026-05-06: Partial qty EOD square-off bug unresolved — keeping max_open_positions=2 to limit unexited capital exposure.",
+    "#lesson 2026-05-05: PNB outside NIFTY 50 universe — excluded along with PNB/BANKBARODA/SAIL/DLF/ETERNAL/INDUSINDBK/ADANIENT.",
+    "#lesson 2026-04-30: Binary-event stocks must be hard-blocked, not just flagged — applied to SBIN (May 8) and TATAPOWER (May 12). BPCL (May 12) excluded from watchlist for the same reason.",
+    "#lesson 2026-W18 (promoted): Documenting a rule is not enforcing it — every entry must hit the MIN_CONFIRMATIONS gate added in d2a2908."
   ]
 }
