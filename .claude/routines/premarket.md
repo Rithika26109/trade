@@ -147,6 +147,30 @@ gh pr create \
 
 **Do NOT push directly to `main`.** Always use a branch + PR.
 
+### 8. Send Telegram briefing
+
+Send a concise Telegram summary so the user knows the routine completed and
+sees the day's plan at a glance. Use `scripts/kite.sh telegram "<msg>"`.
+
+Keep it under ~15 lines. Include: timestamp prefix `08:35`, regime, top 3
+watchlist symbols with bias, any HARD AVOID names, and the PR URL if step 7
+opened one.
+
+```bash
+scripts/kite.sh telegram "$(cat <<'EOF'
+✅ 08:35 Pre-market plan ready
+Regime: <RANGING/TRENDING> | VIX: <level>
+Top watch: SYM1 (long), SYM2 (long), SYM3 (avoid)
+Avoid: PNB, ADANIENT, <others>
+PR: <url>
+EOF
+)"
+```
+
+If the PR step failed or was skipped, send a `⚠️ 08:35 Pre-market: plan
+written but PR not opened — <reason>` message instead. On a hard failure
+earlier in the routine, send `❌ 08:35 Pre-market FAILED at step <N>: <reason>`.
+
 ## Update files when done
 
 After generating the plan and journal entry, ensure:

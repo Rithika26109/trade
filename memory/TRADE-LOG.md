@@ -4,6 +4,16 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-07 (Thursday) — Opening
+- Regime: TRENDING_UP | VIX: unavailable (default sizing active)
+- NIFTY implied: +1.45% (SGX Nifty 24,550) — US-Iran peace deal, SPX +1.5%, Nasdaq +2.0%, Nikkei +5.4% ATH
+- Opening gaps: SUNPHARMA +0.89%, AXISBANK +1.21%, ICICIBANK +0.86%, INFY +0.76%, HDFCBANK +0.37%, RELIANCE -0.04%
+- Hard blocks: SBIN (binary event: Q4 + dividend May 8), TATAPOWER (Q4 May 12 + bias failure May 6)
+- Bot status: RUNNING — launched 09:05 via launchd, ORB range collecting 09:15–09:30, scan starts 09:30
+- Flags: AXISBANK gap >1% (wide ORB risk); VIX API still down; `already_stopped_today` and allowlist bugs still open
+
+---
+
 ## 2026-05-05 (Tuesday) — EOD
 - Regime: TREND_DOWN (PNB bearish bias) | VIX: ~NORMAL
 - Trades: 4 | Wins: 0 | Losses: 4 | Win Rate: 0%

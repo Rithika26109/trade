@@ -4,6 +4,15 @@ Daily market research, macro observations, and recurring patterns. Most recent f
 
 ---
 
+## 2026-05-07 Midday Update
+- Regime: RANGING (NIFTY +0.14% to 24,365), VIX 16.81 NORMAL — morning gap-up faded; choppier than forecast
+- INFY SELL (short) open: entry 1163.55, SL 1175.40, target 1141.20, qty 26 | Unrealized -Rs 63.71 (~-0.21R) at 12:05
+- **RULE FLAG**: INFY entered on 1 strategy (ORB) via high-conv exception (score 82) — same loophole as May 6. Score-bypass is undermining the 2+ confirmation rule
+- **Counter-trend risk**: INFY short taken in TREND_UP regime; ORB breakdown but broader regime is bullish
+- Skipped (correct): HDFCBANK SELL (long bias), RELIANCE SELL ×3 (long bias) — bias veto working today
+- Scanner still selects excluded stocks: PNB, ADANIENT, TATAPOWER, SBIN, INDUSINDBK, BANKBARODA, etc. — allowlist filter not fixed
+- Afternoon watch: INFY needs to hold below VWAP and break 1155 toward 1141 target. If it reclaims 1166+, SL is ~Rs 9 away (watch closely after 1:30 PM)
+
 ## 2026-05-06 Midday Update
 - Regime: Bot intraday regime = STRONG_TREND_UP (upgraded from daily plan RANGING by 11:58 AM)
 - SUNPHARMA (only trade): BUY 11 shares @1844.3 | SL 1818.4 | Target 1896.0 | Unrealized -Rs 12.94 (~-0.05R) | Stop safe, no trail needed yet

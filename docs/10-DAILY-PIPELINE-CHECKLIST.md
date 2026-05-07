@@ -9,8 +9,8 @@ Unlike cron, launchd catches up missed jobs when the Mac wakes from sleep.
 
 | Time (IST) | What | launchd agent | Log |
 |------------|------|---------------|-----|
-| 07:50 | Kite token refresh | `com.trade.token-refresh` | `cron_token.log` |
-| 08:03 | /pre-market research | `com.trade.claude-premarket` | `cron_premarket.log` |
+| 08:30 | Kite token refresh | `com.trade.token-refresh` | `cron_token.log` |
+| 08:35 | /pre-market research | `com.trade.claude-premarket` | `cron_premarket.log` |
 | 09:05 | Bot launch (paper) | `com.trade.bot-launch` | `cron_launch.log` |
 | 09:15 | Healthcheck | `com.trade.bot-healthcheck` | `cron_healthcheck.log` |
 | 09:22 | /market-open review | `com.trade.claude-market-open` | `cron_market_open.log` |
@@ -25,7 +25,7 @@ Unlike cron, launchd catches up missed jobs when the Mac wakes from sleep.
 
 ## Step-by-Step Verification
 
-### 1. Kite Token Refresh (07:50)
+### 1. Kite Token Refresh (08:30)
 
 **Test manually:**
 ```bash
@@ -60,7 +60,7 @@ cat logs/cron_token.log
 
 ---
 
-### 3. Pre-Market Research (08:03)
+### 3. Pre-Market Research (08:35)
 
 **Test manually:**
 ```bash
@@ -257,7 +257,7 @@ tail -20 logs/bot-$(date +%F).log
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| No token refresh log | Mac asleep, launchd catches up on wake | Open lid before 07:50 or let launchd retry |
+| No token refresh log | Mac asleep, launchd catches up on wake | Open lid before 08:30 or let launchd retry |
 | `Enter Zerodha password:` in token log | KITE_PASSWORD not in .env | Add to `config/.env` |
 | `Not logged in` in premarket log | Claude CLI not authed | Run `claude login` (one-time) |
 | `GEMINI_API_KEY not set` | Missing from .env | Add to `config/.env` |
@@ -301,13 +301,13 @@ Runs on the Mac via launchd + `claude -p "/command"`. Uses `config/.env` for sec
 
 | Command | Schedule | Purpose |
 |---------|----------|---------|
-| `/pre-market` | 08:03 | Morning research + watchlist |
+| `/pre-market` | 08:35 | Morning research + watchlist |
 | `/market-open` | 09:22 | Opening bell review |
 | `/midday` | 12:03 | Mid-session check-in |
 | `/daily-summary` | 15:33 | End-of-day P&L + lessons |
 | `/weekly-review` | Fri 16:07 | Weekly performance recap |
 
-Plus non-Claude scripts: `refresh_kite_token.py` (07:50), `run_bot.sh` (09:05), `healthcheck.sh` (09:15), `eod_commit.py` (15:35).
+Plus non-Claude scripts: `refresh_kite_token.py` (08:30), `run_bot.sh` (09:05), `healthcheck.sh` (09:15), `eod_commit.py` (15:35).
 
 ### Cloud Layer (`.claude/routines/`) — READY, NOT ACTIVE
 
@@ -354,7 +354,7 @@ When the Claude GitHub App becomes available, follow these steps to enable cloud
    - `weekly-meta` → 10:00 IST (04:30 UTC) Saturday → `.claude/routines/weekly_meta.md`
 
 4. **Keep local launchd running** — cloud and local are complementary, not replacements:
-   - Cloud `premarket-plan` (07:30) generates the plan → local `/pre-market` (08:03) reviews it
+   - Cloud `premarket-plan` (07:30) generates the plan → local `/pre-market` (08:35) reviews it
    - Cloud `healthcheck` (09:20) verifies bot → local `healthcheck.sh` (09:15) also verifies
    - Cloud `eod-review` (16:30) does deep grading → local `/daily-summary` (15:33) does user briefing
 
