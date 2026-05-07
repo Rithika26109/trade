@@ -4,6 +4,13 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-07 (Thursday) — EOD
+- Regime: RANGING (gap-up faded; NIFTY +0.14% by midday vs implied +1.45%) | VIX: unavailable (NORMAL per ATR)
+- Trades: 2 | Wins: 0 | Losses: 2 | Win Rate: 0%
+- P&L: -Rs 321.33 (paper capital: ~Rs 97,891.80)
+- Key trades: SELL INFY @1163.55→1171.80 -Rs 214.51 (SL hit, 1-strat ORB via high-score bypass — RULE VIOLATION), BUY HDFCBANK @798.65→796.00 -Rs 106.82 (SL hit, 2-strat ORB+VWAP_ST ✓; partial exit bug: 44 in / 36 out)
+- Notes: Gap-up faded to RANGING — predicted TRENDING_UP was wrong. INFY short entered via high-conv score bypass (1-strategy, same loophole as May 6 SUNPHARMA). HDFCBANK rule-compliant but failed breakout. 8 bias vetoes (HDFCBANK ×1, RELIANCE ×5 afternoon — all 1-strategy). Partial exit bug persists (8 HDFCBANK shares unaccounted). SBIN + TATAPOWER hard blocks held.
+
 ## 2026-05-07 (Thursday) — Opening
 - Regime: TRENDING_UP | VIX: unavailable (default sizing active)
 - NIFTY implied: +1.45% (SGX Nifty 24,550) — US-Iran peace deal, SPX +1.5%, Nasdaq +2.0%, Nikkei +5.4% ATH
