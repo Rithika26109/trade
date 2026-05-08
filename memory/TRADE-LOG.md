@@ -4,6 +4,23 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-08 (Friday) — EOD
+- Regime: RANGING (NIFTY 24,195.1, -0.54%) | VIX: 17.04 (NORMAL)
+- Trades: 0 | Wins: 0 | Losses: 0 | Win Rate: N/A
+- P&L: Rs 0.00 (paper capital: ~Rs 98,213.13, unchanged)
+- Key trades: None — 5 SELL signals (2× TCS, 3× HDFCBANK) blocked by long bias; all also single-strategy (1-strat) so 2+ rule would have rejected them too
+- Notes: Bias invalidation bug fired third time — TCS "invalidates if breaks below VWAP through 09:45" condition met but bot never updated bias. Scanner selected wrong watchlist at open (BHARTIARTL, ADANIENT, PNB etc) but events file shows TCS/HDFCBANK signals from 10:00 AM — likely corrected after restart. Hard blocks (SBIN, BHARTIARTL) held correctly. Both avoids were right (SBI Q4 volatile; BHARTIARTL insider window).
+
+## 2026-05-08 (Friday) — Opening
+- NIFTY open: ~24,295 (gap-down ~0.13% from 24,326 prior close — mild, within noise)
+- Regime: RANGING / NORMAL vol | Crude +2.1% (bearish macro) | USD/INR 95.16 (IT tailwind)
+- Key gaps: No significant gaps (SGX Nifty -0.13%)
+- Bot status: RUNNING (launched 09:05, collecting ORB range, waiting for 09:30)
+- Positions at open: CLEAN (none)
+- SCANNER ALERT: Bot selected wrong watchlist — BHARTIARTL (HARD BLOCK!), ADANIENT, PNB, ITC, LT, KOTAKBANK instead of daily_plan.json. Allowlist filter still not enforced in code.
+
+---
+
 ## 2026-05-05 (Tuesday) — EOD
 - Regime: TREND_DOWN (PNB bearish bias) | VIX: ~NORMAL
 - Trades: 4 | Wins: 0 | Losses: 4 | Win Rate: 0%

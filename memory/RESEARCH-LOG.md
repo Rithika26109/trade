@@ -275,3 +275,12 @@ _Patterns observed across multiple sessions. Updated by /weekly-review._
 ---
 
 _No research logged yet. Run /pre-market before your first session._
+
+## 2026-05-08 Midday Update
+- NIFTY: 24,195.1 (-0.54%), regime RANGING, VIX 17.04 (NORMAL), vol LOW
+- 0 trades today — bot running but all 5 signals skipped (reasons below)
+- **BIAS BLOCKER RECURRENCE**: TCS (long bias) and HDFCBANK (long bias) had 5 SELL signals blocked since 10:00 AM. TCS broke below VWAP 2396.22 at 10:00 AM — daily plan invalidation condition ("breaks below VWAP through 09:45") was triggered but bias never updated. Same pattern as TATAPOWER May 6.
+- All skipped signals also had only 1 strategy confirming (correct per 2+ rule), so 2 filters working — but the root bug is bias not adapting intraday
+- Scanner top scores: ETERNAL (not in plan), TATASTEEL, ITC, ADANIENT — most blocked by plan restrictions or binary events
+- Watchlist "both" bias stocks active for afternoon: TATAPOWER (436.45), INFY (1170.0), SUNPHARMA (not yet quoted), RELIANCE (1423.6)
+- **Action for tomorrow**: Daily plan bias invalidation conditions must auto-update the bot's entry direction — just logging "invalidates if below VWAP" is not enough; the code must act on it
