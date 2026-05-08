@@ -24,7 +24,7 @@ Learn intraday trading on Indian markets (NSE/BSE) using a systematic, bot-assis
 |-------|----------|------|--------|
 | Setup | Week 1 | Bot running in paper mode, all routines active | Done (2026-04-24) |
 | First trades | Week 2-3 | Complete 10 paper trades, learn the flow | Done (11 trades by 2026-04-30) |
-| Baseline | Month 1-2 | 30+ trades, first meaningful win rate data | In progress (21/30 trades, 47.6% win rate, -Rs 1,786.87 net) |
+| Baseline | Month 1-2 | 30+ trades, first meaningful win rate data | In progress (23/30 trades, 43% win rate, -Rs 2,108.20 net) |
 | Refinement | Month 2-3 | Backtest tuning, strategy adjustments | Pending |
 | Consistency | Month 3-4 | Positive expectancy over 50+ trades | Pending |
 | Live decision | Month 5-6 | If ready: start live with smallest position sizes | Pending |
@@ -34,10 +34,10 @@ Learn intraday trading on Indian markets (NSE/BSE) using a systematic, bot-assis
 | Metric | Value |
 |--------|-------|
 | Paper starting balance | Rs 1,00,000 |
-| Current paper balance | Rs 98,213.13 |
+| Current paper balance | Rs 97,891.80 |
 | High-water mark | Rs 1,00,012.21 |
-| Max drawdown | Rs 1,786.87 (1.79%) |
-| Sessions completed | 8 trading days + 2 holidays (2026-04-24 — Rs +19.64, 3 trades, 2W/1L, 67%; 2026-04-27 — Rs 0, infra issues; 2026-04-28 — Rs 0, RANGING, 0 trades; 2026-04-29 — Rs -210.79, 5 trades, 2W/3L, 40%; 2026-04-30 — Rs +203.36, 3 trades, 2W/1L, 67%; 2026-05-01 — HOLIDAY Maharashtra Day; 2026-05-04 — Rs -685.47, 4 trades, 2W/2L, 50%; 2026-05-05 — Rs -1,153.77, 4 trades, 0W/4L, 0%; 2026-05-06 — Rs +40.16, 2 trades, 2W/0L, 100% partial exits) |
+| Max drawdown | Rs 2,120.41 (2.12%) |
+| Sessions completed | 10 trading days + 2 holidays (2026-04-24 — Rs +19.64, 3 trades, 2W/1L, 67%; 2026-04-27 — Rs 0, infra issues; 2026-04-28 — Rs 0, RANGING, 0 trades; 2026-04-29 — Rs -210.79, 5 trades, 2W/3L, 40%; 2026-04-30 — Rs +203.36, 3 trades, 2W/1L, 67%; 2026-05-01 — HOLIDAY Maharashtra Day; 2026-05-04 — Rs -685.47, 4 trades, 2W/2L, 50%; 2026-05-05 — Rs -1,153.77, 4 trades, 0W/4L, 0%; 2026-05-06 — Rs +40.16, 2 trades, 2W/0L, 100% partial exits; 2026-05-07 — Rs -321.33, 2 trades, 0W/2L, 0%; 2026-05-08 — Rs 0, 0 trades, 5 bias vetoes) |
 
 ## Emotional Check-In Prompts
 

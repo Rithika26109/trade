@@ -25,12 +25,12 @@ Weekly performance summaries and meta-learning. Most recent first.
 
 | Metric | Value |
 |--------|-------|
-| Weeks completed | 2 |
-| Cumulative P&L | Rs +12.21 (paper) |
-| Overall win rate | 55% (6W / 11T) |
-| Best strategy | VWAP+ST (1W/2T net +Rs 49 — small sample) |
-| Total trades | 11 (paper) |
-| Sessions completed | 5 + 1 holiday |
+| Weeks completed | 3 |
+| Cumulative P&L | -Rs 2,108.20 (paper) |
+| Overall win rate | 43% (10W / 23T) |
+| Best strategy | VWAP+ST (small sample, 1W/2T net +Rs 49) |
+| Total trades | 23 (paper) |
+| Sessions completed | 10 + 2 holidays |
 
 ---
 
@@ -38,14 +38,44 @@ Weekly performance summaries and meta-learning. Most recent first.
 
 _Active targets for self-improvement. Updated weekly._
 
-1. **Fix premature EOD bug** — root-cause `wind-down` time comparison in commit 943a95b. Killed every ORB setup this week; 3 occurrences across W18.
-2. **Enforce 2+ confirmation in code** — reject 1-strategy signals at the order path, not just in docs. 8/8 trades this week violated this.
-3. **Hard-block binary-event stocks in scanner** — exclude from symbol selection entirely. ADANIENT Q4 traded on Apr 30 despite flag.
-4. **Fix partial qty exit bug** — order_manager.py not closing 100% on EOD square-off (RELIANCE 21→13, ADANIENT 12→8 on Apr 30).
+1. **Enforce 2+ confirmation in code, including high-score path** — close the
+   high-score bypass loophole that produced losers on May 6 (SUNPHARMA) and
+   May 7 (INFY). The MIN_CONFIRMATIONS gate must apply even when conviction
+   score is high.
+2. **Bias must adapt intraday** — if a `long`-biased stock is below VWAP at
+   09:45, demote to `both` automatically. Three sessions of blocked profitable
+   counter-trend signals this week (TATAPOWER, TCS, HDFCBANK).
+3. **Partial qty EOD square-off bug in `order_manager.py`** — must reconcile
+   to 0 open qty at 15:15. Recurred 4× this week (HDFCBANK, SUNPHARMA, RELIANCE).
+4. **`already_stopped_today` veto in code** — PNB ×3 on May 5 and ADANIENT ×2
+   on May 4 prove the rule is still doc-only after 3 weeks.
+5. **Scanner allowlist enforcement** — May 8 bot picked BHARTIARTL/PNB/KOTAKBANK
+   despite plan's hard-avoid; out-of-watchlist symbols still slip through.
 
 ---
 
 <!-- Weekly summaries will be prepended here by /weekly-review command -->
+
+## Week 2026-W19 (Mon May 04 - Fri May 08) — Worst Week to Date
+
+- Days traded: 5 (no holiday)
+- Total P&L: **-Rs 2,120.41** (paper) — 5-session run of red except Wed
+- Win rate: 33% (4W / 12T)
+- Best day: 2026-05-06 (+Rs 40.16, 2W/0L on partial-only exits)
+- Worst day: 2026-05-05 (-Rs 1,153.77, 0W/4L; PNB ×3 SL hits, RELIANCE −1)
+- Per-day: Mon −685, Tue −1,154, Wed +40, Thu −321, Fri 0 (5 bias vetoes)
+- Strategy breakdown: ORB 2W/4T (mostly EOD partials), RSI+EMA 1W/3T, VWAP+ST 1W/4T, MULTI 0W/1T
+- Regime prediction accuracy: 1/5 — daily-anchored regime missed Wed strong-trend-up and Thu gap-up-fade
+- Bias veto count: 13 (Wed) + 5 (Fri) — mechanism wired, but the bias itself was the failure mode 3× (TATAPOWER May 6, TCS May 8, HDFCBANK May 8)
+- Promoted lessons:
+  - Pre-market `long` bias contradicted intraday tape on 3 sessions — heuristic: default to `both` unless catalyst is robust to intraday price action
+  - High-score bypass produced 1-strategy losers 2× — MIN_CONFIRMATIONS must apply unconditionally
+  - Partial-qty EOD exits remain critical (HDFCBANK 50/51 May 6, 8/44 May 7, SUNPHARMA 6/11 May 6)
+  - Banking-cluster Q4 days contaminate cross-bank exposure (May 5, May 8)
+- What worked: Hard `avoid` blocks held (SBIN, BHARTIARTL, PNB) — zero events; risk tightening Mon→Tue→Wed preserved capital from a third bad day; ITC-style 2-strategy entries remained directionally clean
+- Key finding: Pre-market discipline was high (lessons cited, risks tightened, hard blocks honored). The losses came from code-side gaps the prompt cannot fix — bias-doesn't-adapt, high-score-bypass, partial-qty-exit. Documented rules without enforcement still cost real money.
+- Changes this week: Weekly summary written; premarket.md refinements drafted but **not applied** (harness permission policy blocked the write — proposals documented in `logs/journal/weekly/2026-W19.md`)
+- Next week goals: Apply the four queued premarket.md refinements; close MIN_CONFIRMATIONS bypass loophole; finally fix partial-qty EOD exit; wire `already_stopped_today` veto into order path
 
 ## Week 2026-W18 (Mon Apr 27 - Fri May 01) — First Full Week of Live Sessions
 
