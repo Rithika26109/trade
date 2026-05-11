@@ -1,6 +1,6 @@
 # Active Trading Strategy
 
-Last updated: 2026-04-24
+Last updated: 2026-05-11
 
 ## Current Mode: PAPER
 
@@ -36,14 +36,22 @@ Last updated: 2026-04-24
 
 ## Risk Parameters
 
-| Rule | Value |
-|------|-------|
-| Max risk per trade | 1% of capital |
-| Max daily loss | 3% of capital |
-| Max trades per day | 5 |
-| Max open positions | 2 |
-| Min risk/reward | 1:2 |
-| Position sizing | `(Capital x 1%) / (Entry - SL)` |
+Two columns: the **paper-mode** values currently enforced by `config/settings.py`, and the **live-mode target** values that must be in place before flipping `TRADING_MODE=live`. The `daily_plan.json` `risk_overrides` block can tighten these per session (typical: max_trades=3, risk=1.0%, max_open=2).
+
+| Rule | Paper (enforced) | Live target | Code reference |
+|------|------------------|-------------|----------------|
+| Max risk per trade | 3.0% | 0.5% | `RISK_PER_TRADE_PCT` |
+| Max daily loss | 3.0% | 2.0% | `MAX_DAILY_LOSS_PCT` |
+| Max trades per day | 7 | 5 | `MAX_TRADES_PER_DAY` |
+| Max open positions | 4 | 2 | `MAX_OPEN_POSITIONS` |
+| Min risk/reward (net of costs) | 1.5 | 1.5 | `MIN_RISK_REWARD_RATIO` |
+| Target risk/reward | 2.0 | 2.0 | `TARGET_RISK_REWARD_RATIO` |
+| Max position size (% of capital) | 40% | 40% | `MAX_POSITION_PCT` |
+| Consecutive-loss pause | 2 losses → 10 min | 2 losses → 10 min | `MAX_CONSECUTIVE_LOSSES` |
+| Min strategy confirmations | 2 | 2 | `MIN_CONFIRMATIONS` |
+| Single-strategy bypass (high conviction) | score ≥ 60 | score ≥ 60 | `HIGH_CONVICTION_SCORE` |
+| Stopped-symbol cooldown (same-day SL) | on | on | `STOPPED_SYMBOL_COOLDOWN` |
+| Position sizing | `(Capital × risk_pct) / (Entry − SL)` | same | `src/risk/risk_manager.py` |
 
 ## When NOT to Trade
 
@@ -56,13 +64,22 @@ Last updated: 2026-04-24
 
 ## Target Stocks
 
-NIFTY 50 large-caps: RELIANCE, TCS, HDFCBANK, INFY, ICICIBANK, KOTAKBANK, HINDUNILVR, ITC, SBIN, BHARTIARTL, LT, AXISBANK, BAJFINANCE, MARUTI, WIPRO, TATAMOTORS
+Source of truth: `config/settings.py:WATCHLIST` (currently 24 names). Filtered each session by the scanner (`SCANNER_TOP_N`) and the daily plan's `watchlist` / `avoid` entries.
+
+- **Large-cap (NIFTY 50 core):** RELIANCE, TCS, HDFCBANK, INFY, ICICIBANK, SBIN, BHARTIARTL, ITC, KOTAKBANK, LT
+- **Sector diversifiers:** AXISBANK, HINDUNILVR, HCLTECH, SUNPHARMA
+- **Mid-cap (F&O eligible, high intraday volume):** TATASTEEL, TATAPOWER, PNB, ADANIENT, BANKBARODA, INDUSINDBK, DLF, BPCL, SAIL, ETERNAL
+
+Note: `PNB` and `ETERNAL` are mid-caps outside the strict NIFTY 50 set — they are eligible only when a daily plan explicitly includes them (per #lesson 2026-05-05).
 
 ## Market Hours
 
-- **NSE pre-open:** 9:00 - 9:15 AM IST
+- **NSE pre-open:** 9:00 – 9:15 AM IST
 - **Market open:** 9:15 AM IST
-- **Bot active:** 9:30 AM - 3:15 PM IST
+- **Bot launch (launchd):** 9:05 AM IST — sets up state, opens WebSocket/poller, ready for 9:15 ORB window
+- **Bot active trading window:** 9:15 AM – 3:15 PM IST
+- **Wind-down / no new entries:** 3:00 – 3:15 PM IST
+- **EOD square-off:** 3:15 PM IST
 - **Market close:** 3:30 PM IST
 
 ---
@@ -93,6 +110,12 @@ _Updated by /weekly-review and /daily-summary commands. Most recent first._
 - **#lesson 2026-05-05:** PNB traded 3 consecutive times (all SL hits). `already_stopped_today` set still not in code after 4 sessions of the same lesson. Add to `order_manager.py` before any new feature work — blocks same-stock re-entry after SL hit on the same day.
 - **#lesson 2026-05-05:** PNB is not in the defined NIFTY 50 target universe. The scanner is selecting stocks outside the allowlist. Add explicit allowlist filter in orchestrator/scanner so only stocks defined in `config/settings.py` are eligible for entry.
 - **#lesson 2026-05-05:** Orphaned position from Apr 24 (TCS qty=12, lost during restart) appeared in today's EOD square-off. On startup, bot must reconcile broker positions vs. internal state rather than assuming a clean slate.
+- **#lesson 2026-05-07:** High-score bypass loophole — single-strategy entries leaked through `MIN_CONFIRMATIONS=2` because the `HIGH_CONVICTION_SCORE` escape hatch fired. Every entry must clear MIN_CONFIRMATIONS=2 regardless of score; if you keep the bypass, raise the threshold high enough that it cannot fire on normal tape (or just delete it).
+- **#lesson 2026-05-07:** SGX gap framing can fade — re-evaluate regime at 09:45. If NIFTY is within 0.3% of prior close by then, demote any directional regime call to RANGING and tighten further.
+- **#lesson 2026-05-08:** Bias-invalidation conditions written in `daily_plan.json` (e.g. "invalidates if breaks below VWAP through 09:45") are not executed in bot runtime. Same non-execution pattern fired for TATAPOWER on May 6 (×13 vetoes) and TCS + HDFCBANK on May 8. Third recurrence — code fix in `plan_loader.py` / orchestrator is now the highest-leverage change after the partial-exit bug.
+- **#lesson 2026-05-08:** Even on a 'long' IT tailwind day, individual stocks can break VWAP and stay there if sector noise (SBI Q4 day) suppresses the whole tape. Prefer `bias: both` for all names except the highest-conviction directional setups (conviction 5+), or apply a mandatory bias-flip when VWAP breaks by 09:45.
+- **#lesson 2026-05-11:** `HIGH_CONVICTION_SCORE=80` made the single-strategy bypass effectively unreachable — 96 (Fri) + 75 (Mon) signal rejections, best score was 79. Lowered to 60 so realistic confluence scores can clear the gate while still filtering noise. Pair this with a hard rule that the bypass never fires when an obvious code error silently disables a strategy (see next).
+- **#lesson 2026-05-11:** `RSI_EMA` crashed mid-session on 6 symbols (`'<=' not supported between float and NoneType`) and the exception was swallowed in the orchestrator at DEBUG level, silently dropping a confluence vote. Strategy errors now coerce to float and HOLD on `None`; consider promoting any strategy exception above DEBUG so a single broken strategy doesn't masquerade as "no signal".
 - **#lesson 2026-W19 (promoted):** Pre-market `long`/`short` bias contradicted intraday tape on 3 sessions (TATAPOWER May 6 — 13 SELL signals blocked; TCS + HDFCBANK May 8 — 5 SELL signals blocked). Default to `bias: both` unless catalyst is robust to intraday price action. Reserve directional bias for confirmed multi-day trends, just-resolved binaries, or extreme sector dislocation.
 - **#lesson 2026-W19 (promoted):** High-score bypass loophole let 1-strategy entries through MIN_CONFIRMATIONS gate twice (SUNPHARMA May 6, INFY May 7 — both lost). The 2+ confirmation rule must apply unconditionally, regardless of score.
 - **#lesson 2026-W19 (promoted):** Banking-cluster Q4 days (May 5 LT/PNB, May 8 SBI/BoB) leak volatility to neighbours with no event of their own. On big-bank-print days, keep at most one bank in the watchlist with `both` bias.

@@ -61,7 +61,7 @@ class MeanReversionStrategy(BaseStrategy):
             if adx >= adx_max:
                 return self._hold(symbol, f"ADX {adx:.1f} >= {adx_max} — not ranging")
 
-        # ── Regime gate (redundant safety with ADX check) ──
+        # ── Regime gate: skip when market is trending ──
         if regime is not None and getattr(settings, "ENABLE_REGIME_DETECTION", False):
             if regime.is_trending:
                 return self._hold(symbol, f"Regime {regime.value} is trending")
