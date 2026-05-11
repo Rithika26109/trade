@@ -47,13 +47,20 @@ class RSIEMAStrategy(BaseStrategy):
         if len(df) < 3:
             return self._hold(symbol, "Not enough data")
 
-        # Latest values
+        # Latest values (coerce to float; pandas may yield None for object-dtype cols)
         close = df["close"].iloc[-1]
         rsi = df["rsi"].iloc[-1]
         atr = df["atr"].iloc[-1]
 
-        if pd.isna(rsi) or pd.isna(atr):
+        if pd.isna(close) or pd.isna(rsi) or pd.isna(atr) or close is None:
             return self._hold(symbol, "Indicators not ready")
+
+        try:
+            close = float(close)
+            rsi = float(rsi)
+            atr = float(atr)
+        except (TypeError, ValueError):
+            return self._hold(symbol, "Indicators not ready (cast failed)")
 
         # ── ADX trend strength filter ──
         if "adx" in df.columns:
@@ -66,7 +73,7 @@ class RSIEMAStrategy(BaseStrategy):
 
         # Check VWAP if available
         has_vwap = "vwap" in df.columns and pd.notna(df["vwap"].iloc[-1])
-        vwap = df["vwap"].iloc[-1] if has_vwap else None
+        vwap = float(df["vwap"].iloc[-1]) if has_vwap else None
 
         # Check EMA crossover (with catch-up lookback for mid-session starts)
         catchup = getattr(settings, 'CATCH_UP_CANDLES', 1)
@@ -209,6 +216,10 @@ class RSIEMAStrategy(BaseStrategy):
                 in_trend = adx_val is not None and not pd.isna(adx_val) and adx_val > 20
                 fast = df["ema_fast"].iloc[-1]
                 slow = df["ema_slow"].iloc[-1]
+                if pd.isna(fast) or pd.isna(slow) or fast is None or slow is None:
+                    return self._hold(symbol, f"No crossover or divergence signal (RSI={rsi:.1f})")
+                fast = float(fast)
+                slow = float(slow)
                 vwap_ok_buy = (close > vwap) if vwap else True
                 vwap_ok_sell = (close < vwap) if vwap else True
 

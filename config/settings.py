@@ -76,7 +76,7 @@ MAX_POSITION_PCT = 40.0  # Max 40% of capital in a single position
 MAX_CONSECUTIVE_LOSSES = 2  # Pause after 2 consecutive losses (was 3 — tightened 2026-05-05)
 PAUSE_AFTER_LOSSES_MINUTES = 10  # Pause duration after consecutive losses
 MIN_CONFIRMATIONS = 2  # Min number of strategies that must agree for an entry (added 2026-05-05)
-HIGH_CONVICTION_SCORE = 80.0  # Single-strategy entries allowed if confluence_score >= this (added 2026-05-05)
+HIGH_CONVICTION_SCORE = 60.0  # Single-strategy entries allowed if confluence_score >= this (added 2026-05-05)
 STOPPED_SYMBOL_COOLDOWN = True  # Block re-entry on a symbol after a same-day SL hit (added 2026-05-05)
 
 # ── Stop-Loss Settings ──
