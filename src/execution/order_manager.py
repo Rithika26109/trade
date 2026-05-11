@@ -656,28 +656,40 @@ class OrderManager:
             self._close_live_position(order, exit_price, reason)
 
     def _close_paper_position(self, order: Order, exit_price: float, reason: str):
-        """Close a paper position and calculate P&L."""
+        """Close a paper position and calculate P&L.
+
+        The position may have already had partial exits which accumulated P&L
+        into ``order.pnl``. The final-leg P&L MUST be added, not assigned, or
+        all partial profits are silently wiped at EOD square-off.
+        """
+        final_qty = order.quantity  # remaining qty after any partial exits
+        if order.signal == Signal.BUY:
+            final_leg_pnl = (exit_price - order.executed_price) * final_qty
+        else:
+            final_leg_pnl = (order.executed_price - exit_price) * final_qty
+        order.pnl += final_leg_pnl
         order.exit_price = exit_price
         order.exit_reason = reason
-        if order.signal == Signal.BUY:
-            order.pnl = (exit_price - order.executed_price) * order.quantity
-        else:
-            order.pnl = (order.executed_price - exit_price) * order.quantity
 
         order.status = OrderStatus.EXECUTED
         order.is_open = False
         _side = "BUY" if order.signal == Signal.BUY else "SELL"
+        total_qty = order.original_quantity or final_qty
         logger.info(
             f"[PAPER] CLOSED {order.symbol} ({_side}) | "
             f"Entry: {order.executed_price:.2f} | Exit: {exit_price:.2f} | "
-            f"P&L: ₹{order.pnl:+.2f} | {reason}"
+            f"FinalQty: {final_qty}/{total_qty} | FinalLegP&L: ₹{final_leg_pnl:+.2f} | "
+            f"TotalP&L: ₹{order.pnl:+.2f} | {reason}"
         )
         audit(
             "order_close",
             order_id=order.order_id,
             symbol=order.symbol,
             exit_price=exit_price,
-            pnl=order.pnl,
+            final_leg_pnl=final_leg_pnl,
+            total_pnl=order.pnl,
+            final_quantity=final_qty,
+            original_quantity=total_qty,
             reason=reason,
             paper=True,
         )
@@ -689,8 +701,10 @@ class OrderManager:
             strategy=order.strategy,
             entry_price=order.executed_price,
             exit_price=exit_price,
-            quantity=order.quantity,
+            quantity=final_qty,
+            original_quantity=total_qty,
             pnl=order.pnl,
+            final_leg_pnl=final_leg_pnl,
             reason=reason,
         )
 
@@ -755,18 +769,24 @@ class OrderManager:
                     f"({(confirmed_exit - exit_price) / exit_price * 100:+.3f}%)"
                 )
 
+            final_qty = order.quantity  # remaining qty after any partial exits
+            if order.signal == Signal.BUY:
+                final_leg_pnl = (confirmed_exit - order.executed_price) * final_qty
+            else:
+                final_leg_pnl = (order.executed_price - confirmed_exit) * final_qty
+            # Accumulate, do not overwrite: partial exits have already added
+            # their P&L into order.pnl and must be preserved at final close.
+            order.pnl += final_leg_pnl
             order.exit_price = confirmed_exit
             order.exit_reason = reason
-            if order.signal == Signal.BUY:
-                order.pnl = (confirmed_exit - order.executed_price) * order.quantity
-            else:
-                order.pnl = (order.executed_price - confirmed_exit) * order.quantity
 
             order.is_open = False
+            total_qty = order.original_quantity or final_qty
             logger.info(
                 f"[LIVE] CLOSED {order.symbol} | "
                 f"Entry: {order.executed_price:.2f} | Exit: {confirmed_exit:.2f} | "
-                f"P&L: Rs {order.pnl:.2f} | {reason}"
+                f"FinalQty: {final_qty}/{total_qty} | FinalLegP&L: Rs {final_leg_pnl:+.2f} | "
+                f"TotalP&L: Rs {order.pnl:.2f} | {reason}"
             )
             audit(
                 "order_close",
@@ -774,7 +794,10 @@ class OrderManager:
                 close_order_id=str(close_id),
                 symbol=order.symbol,
                 exit_price=confirmed_exit,
-                pnl=order.pnl,
+                final_leg_pnl=final_leg_pnl,
+                total_pnl=order.pnl,
+                final_quantity=final_qty,
+                original_quantity=total_qty,
                 reason=reason,
                 paper=False,
             )
@@ -786,8 +809,10 @@ class OrderManager:
                 strategy=order.strategy,
                 entry_price=order.executed_price,
                 exit_price=confirmed_exit,
-                quantity=order.quantity,
+                quantity=final_qty,
+                original_quantity=total_qty,
                 pnl=order.pnl,
+                final_leg_pnl=final_leg_pnl,
                 reason=reason,
             )
         except Exception as e:
@@ -864,6 +889,37 @@ class OrderManager:
             f"[{mode}] PARTIAL CLOSE {order.symbol} | "
             f"Qty: {quantity} @ {confirmed_exit:.2f} | "
             f"P&L: Rs {partial_pnl:+.2f} | Remaining: {order.quantity} | {reason}"
+        )
+        audit(
+            "order_partial_close",
+            order_id=order.order_id,
+            symbol=order.symbol,
+            exit_price=confirmed_exit,
+            leg_pnl=partial_pnl,
+            leg_quantity=quantity,
+            remaining_quantity=order.quantity,
+            cumulative_pnl=order.pnl,
+            original_quantity=order.original_quantity or (order.quantity + quantity),
+            reason=reason,
+            paper=order.is_paper,
+        )
+        # Emit JSONL event so partial legs are not lost from the audit trail.
+        # Without this, EOD square-off looks like a tiny 1-share trade because
+        # only the final remaining leg gets a journal entry (HDFCBANK 1/51 bug,
+        # SUNPHARMA 5/11 bug — W19).
+        journal_emit(
+            "partial_exit",
+            symbol=order.symbol,
+            signal=order.signal.value,
+            strategy=order.strategy,
+            entry_price=order.executed_price,
+            exit_price=confirmed_exit,
+            quantity=quantity,
+            remaining_quantity=order.quantity,
+            original_quantity=order.original_quantity or (order.quantity + quantity),
+            leg_pnl=partial_pnl,
+            cumulative_pnl=order.pnl,
+            reason=reason,
         )
 
         # Live mode: resize the standing SLM to the remaining quantity,

@@ -160,6 +160,96 @@ class TestPartialClose:
         assert order.is_open is False
         assert len(order.partial_exits) == 2
 
+    def test_partial_pnl_preserved_through_final_close_buy(self, mock_order_manager, monkeypatch):
+        """REGRESSION: EOD square-off after partial exits must accumulate, not
+        overwrite, the partial-exit P&L. Bug seen weekly in W19 (HDFCBANK 50/51,
+        SUNPHARMA 6/11, RELIANCE 27 partial-only)."""
+        monkeypatch.setattr(settings, "PAPER_DYNAMIC_SLIPPAGE", False)
+        monkeypatch.setattr(settings, "PAPER_SLIPPAGE_PCT", 0)
+        om = mock_order_manager
+        sig = _make_trade_signal(price=2500.0, quantity=11)
+        order = om.place_order(sig)
+
+        # Two partial exits accumulate +200 + +180 = +380
+        om.partial_close(order, exit_price=2550.0, quantity=4, reason="1R")
+        om.partial_close(order, exit_price=2560.0, quantity=3, reason="2R")
+        partial_pnl_so_far = order.pnl
+        assert partial_pnl_so_far == pytest.approx((50.0 * 4) + (60.0 * 3))
+        assert order.quantity == 4
+
+        # EOD square-off at 2510 → final-leg P&L = 10 * 4 = +40
+        om.close_position(order, exit_price=2510.0, reason="End of day square-off")
+
+        # Total P&L must include partials, not be overwritten
+        assert order.pnl == pytest.approx(partial_pnl_so_far + (10.0 * 4))
+        assert order.is_open is False
+        assert order.original_quantity == 11
+
+    def test_partial_pnl_preserved_through_final_close_sell(self, mock_order_manager, monkeypatch):
+        """SELL leg: same invariant — partial profits survive final close."""
+        monkeypatch.setattr(settings, "PAPER_DYNAMIC_SLIPPAGE", False)
+        monkeypatch.setattr(settings, "PAPER_SLIPPAGE_PCT", 0)
+        om = mock_order_manager
+        sig = _make_trade_signal(signal=Signal.SELL, price=2500.0, quantity=10)
+        order = om.place_order(sig)
+
+        om.partial_close(order, exit_price=2470.0, quantity=4, reason="1R")
+        partial_pnl_so_far = order.pnl
+        assert partial_pnl_so_far == pytest.approx(30.0 * 4)
+
+        om.close_position(order, exit_price=2495.0, reason="EOD")
+        # Final leg: (2500 - 2495) * 6 = +30
+        assert order.pnl == pytest.approx(partial_pnl_so_far + (5.0 * 6))
+        assert order.is_open is False
+
+    def test_partial_close_emits_journal_event(self, mock_order_manager, monkeypatch):
+        """REGRESSION: partial_close must emit a journal event so partial legs
+        survive in the audit trail. Without this, EOD looks like a tiny final-
+        leg trade and the partial qty/P&L is invisible (HDFCBANK 1/51 May 6,
+        SUNPHARMA 5/11 May 6 — W19)."""
+        monkeypatch.setattr(settings, "PAPER_DYNAMIC_SLIPPAGE", False)
+        monkeypatch.setattr(settings, "PAPER_SLIPPAGE_PCT", 0)
+
+        events: list[tuple[str, dict]] = []
+
+        def _capture(event_type, **fields):
+            events.append((event_type, fields))
+
+        import src.execution.order_manager as om_mod
+        monkeypatch.setattr(om_mod, "journal_emit", _capture)
+
+        om = mock_order_manager
+        sig = _make_trade_signal(price=2500.0, quantity=11)
+        order = om.place_order(sig)
+
+        om.partial_close(order, exit_price=2550.0, quantity=4, reason="1R")
+        om.partial_close(order, exit_price=2560.0, quantity=3, reason="2R")
+        om.close_position(order, exit_price=2510.0, reason="End of day square-off")
+
+        partial_events = [e for e in events if e[0] == "partial_exit"]
+        exit_events = [e for e in events if e[0] == "exit"]
+
+        assert len(partial_events) == 2, "Both partial legs must be journaled"
+        assert len(exit_events) == 1, "Final close emits one exit event"
+
+        leg1 = partial_events[0][1]
+        assert leg1["symbol"] == "RELIANCE"
+        assert leg1["quantity"] == 4
+        assert leg1["remaining_quantity"] == 7
+        assert leg1["original_quantity"] == 11
+        assert leg1["leg_pnl"] == pytest.approx(50.0 * 4)
+        assert leg1["cumulative_pnl"] == pytest.approx(50.0 * 4)
+
+        leg2 = partial_events[1][1]
+        assert leg2["quantity"] == 3
+        assert leg2["remaining_quantity"] == 4
+        assert leg2["leg_pnl"] == pytest.approx(60.0 * 3)
+        assert leg2["cumulative_pnl"] == pytest.approx((50.0 * 4) + (60.0 * 3))
+
+        final = exit_events[0][1]
+        assert final["quantity"] == 4
+        assert final["original_quantity"] == 11
+
 
 class TestOpenOrdersFiltering:
 
