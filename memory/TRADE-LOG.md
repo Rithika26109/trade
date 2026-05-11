@@ -4,6 +4,24 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-11 (Monday) — EOD
+- Regime: TREND_DOWN (NIFTY ~23,932, -1.0% on day) | VIX: 18.29 (NORMAL)
+- Trades: 0 signal trades | Wins: 0 | Losses: 0 | Win Rate: N/A
+- P&L: Rs 0.00 (paper capital: ~Rs 97,891.80, unchanged)
+- Key trades: None — 8 signals rejected by 2+ confirmation rule (INFY ORB ×1, HDFCBANK RSI_EMA ×4, RELIANCE ORB/RSI_EMA ×3). TCS orphan (10 shares) reconciled at breakeven (Rs 0).
+- Notes: First full session with MIN_CONFIRMATIONS=2 enforced in code — all 8 rejections were clean, no bypass. BHARTIARTL hard block held (Q4 results tomorrow). Predicted TREND_DOWN regime was correct. No-trade day on pre-CPI + TREND_DOWN is correct behavior.
+
+## 2026-05-11 (Monday) — Opening
+- NIFTY prior close: 24,176.15 (TREND_DOWN, -0.62% Fri)
+- Pre-market gaps: HDFCBANK -1.51%, AXISBANK -0.98%, RELIANCE -0.71%, TATAPOWER -0.26%, INFY -0.15%, ITC +0.49%, SUNPHARMA ~flat
+- BHARTIARTL: HARD AVOID (Q4 results Wed May 13)
+- Bot status: Running — ORB collection in progress (waiting for 09:30)
+- India VIX: API down — using default sizing
+- Risk overrides active: max_trades=3, risk_per_trade=1.0%, max_open_positions=2
+- Regime note: Crude +3.5% (Brent ~$104.80), US CPI Tue May 12 (keep size small)
+
+---
+
 ## 2026-05-08 (Friday) — EOD
 - Regime: RANGING (NIFTY 24,195.1, -0.54%) | VIX: 17.04 (NORMAL)
 - Trades: 0 | Wins: 0 | Losses: 0 | Win Rate: N/A
