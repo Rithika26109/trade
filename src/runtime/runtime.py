@@ -116,16 +116,70 @@ class Runtime:
 
     def _scan_stocks(self) -> None:
         ctx = self.ctx
+        source: str
         if ctx.daily_plan and ctx.daily_plan.watchlist:
             ctx.todays_watchlist = list(ctx.daily_plan.watchlist)
+            source = "plan"
             logger.info(f"[PLAN] Using plan watchlist ({len(ctx.todays_watchlist)} symbols)")
         elif ctx.scanner:
             ctx.todays_watchlist = ctx.scanner.scan()
+            source = "scanner"
         else:
             ctx.todays_watchlist = settings.WATCHLIST[:5]
+            source = "static"
 
         if not ctx.todays_watchlist:
             ctx.todays_watchlist = settings.WATCHLIST[:5]
+            source = "static_fallback"
+
+        # ── Allowlist enforcement ─────────────────────────────────────────
+        # Two gates, applied to EVERY selection source (plan / scanner /
+        # static fallback) so no upstream bug can sneak a hard-blocked
+        # symbol into the live monitoring loop:
+        #
+        #   (a) Static universe: symbol must be in settings.WATCHLIST.
+        #       Scanner currently honours this, but defence-in-depth costs
+        #       nothing and catches future regressions.
+        #   (b) Per-session avoid: if a daily_plan is loaded, drop any
+        #       symbol whose bias is "avoid" (BHARTIARTL on May 8, SBIN
+        #       Q4 days, etc.).
+        universe = set(settings.WATCHLIST)
+        avoid: set[str] = set()
+        if ctx.daily_plan is not None:
+            avoid = {
+                sym for sym, bias in ctx.daily_plan.bias_by_symbol.items()
+                if bias == "avoid"
+            }
+
+        filtered: list[str] = []
+        dropped_universe: list[str] = []
+        dropped_avoid: list[str] = []
+        for sym in ctx.todays_watchlist:
+            if sym not in universe:
+                dropped_universe.append(sym)
+                continue
+            if sym in avoid:
+                dropped_avoid.append(sym)
+                continue
+            filtered.append(sym)
+
+        if dropped_universe:
+            logger.warning(
+                f"[ALLOWLIST] Dropped {len(dropped_universe)} off-universe "
+                f"symbol(s) from {source} selection: {dropped_universe}"
+            )
+        if dropped_avoid:
+            logger.warning(
+                f"[ALLOWLIST] Dropped {len(dropped_avoid)} avoid-listed "
+                f"symbol(s) from {source} selection: {dropped_avoid}"
+            )
+        ctx.todays_watchlist = filtered
+
+        if not ctx.todays_watchlist:
+            logger.warning(
+                "[ALLOWLIST] Watchlist empty after avoid/universe filter — "
+                "no symbols will be monitored today."
+            )
 
         if ctx.market_data:
             for symbol in ctx.todays_watchlist:
@@ -136,7 +190,7 @@ class Runtime:
                 except Exception as e:
                     logger.warning(f"Could not get token for {symbol}: {e}")
 
-        logger.info(f"Today's watchlist: {ctx.todays_watchlist}")
+        logger.info(f"Today's watchlist ({source}): {ctx.todays_watchlist}")
 
     def _start_websocket(self) -> None:
         ctx = self.ctx
