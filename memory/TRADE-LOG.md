@@ -4,6 +4,13 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-12 (Tuesday) — EOD
+- Regime: TRENDING_DOWN (NIFTY -0.95% to ~23,589, extending Mon's -1.49%; 2-day ~-2.4%) | VIX: ~NORMAL (API down)
+- Trades: 3 | Wins: 3 | Losses: 0 | Win Rate: 100%
+- P&L: +Rs 390.96 (paper capital: ~Rs 98,282.76)
+- Key trades: SELL LT @3900→3897.5 +Rs 29.08 (trail-stop, VWAP_ST — watchlist violation + 1-strat), SELL SBIN @969.5→968.2 +Rs 54.89 (trail-stop, ORB+RSI_EMA — explicit exclude violation), SELL PNB @103.6→102.8 +Rs 306.99 (EOD, ORB — binary event Q4 today + out-of-universe + 1-strat violation)
+- Notes: All 3 trades off-plan (none from daily watchlist of 7). All 3 profitable. Zero planned hypotheses tested. Exit logger bug: LT + SBIN labeled "stop-loss hit" at profit prices — trailing stop mislabeled. Code priorities: scanner allowlist + binary event hard block (PNB Q4 was a hard avoid).
+
 ## 2026-05-12 (Tuesday) — Opening
 - NIFTY prior close: 23,815.85 (RANGING, -1.49% Mon)
 - Regime: RANGING/NORMAL | US CPI tonight (post-close, pre-print jitters)
