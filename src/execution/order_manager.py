@@ -75,6 +75,8 @@ class OrderManager:
         self.orders: list[Order] = []
         # Paper-mode capital callback for rejection simulation (wired by main.py)
         self._get_available_capital: callable | None = None
+        # Optional notifier (wired by bootstrap) for trade exit alerts.
+        self.notifier = None
         # SEBI compliance: cap order rate to stay under the 10/s limit.
         self._order_rate_limiter = RateLimiter(
             max_calls=getattr(settings, "ORDER_RATE_LIMIT_PER_SEC", 8),
@@ -707,6 +709,18 @@ class OrderManager:
             final_leg_pnl=final_leg_pnl,
             reason=reason,
         )
+        if self.notifier is not None:
+            try:
+                self.notifier.send_close_alert(
+                    symbol=order.symbol,
+                    entry_price=order.executed_price,
+                    exit_price=exit_price,
+                    pnl=order.pnl,
+                    reason=reason,
+                    is_paper=True,
+                )
+            except Exception as e:
+                logger.error(f"send_close_alert failed: {e}")
 
     def _close_live_position(self, order: Order, exit_price: float, reason: str):
         """Close a live position on Zerodha.
@@ -815,6 +829,18 @@ class OrderManager:
                 final_leg_pnl=final_leg_pnl,
                 reason=reason,
             )
+            if self.notifier is not None:
+                try:
+                    self.notifier.send_close_alert(
+                        symbol=order.symbol,
+                        entry_price=order.executed_price,
+                        exit_price=confirmed_exit,
+                        pnl=order.pnl,
+                        reason=reason,
+                        is_paper=False,
+                    )
+                except Exception as e:
+                    logger.error(f"send_close_alert failed: {e}")
         except Exception as e:
             logger.error(f"Failed to close position for {order.symbol}: {e}")
 
@@ -921,6 +947,17 @@ class OrderManager:
             cumulative_pnl=order.pnl,
             reason=reason,
         )
+
+        if self.notifier is not None:
+            try:
+                self.notifier.send(
+                    f"✂️ [{mode}] PARTIAL {order.symbol}\n"
+                    f"Qty: {quantity} @ Rs {confirmed_exit:.2f}\n"
+                    f"Leg PnL: Rs {partial_pnl:+.2f}\n"
+                    f"Remaining: {order.quantity} | {reason}"
+                )
+            except Exception as e:
+                logger.error(f"partial-close notify failed: {e}")
 
         # Live mode: resize the standing SLM to the remaining quantity,
         # or cancel it if the position is now fully closed.

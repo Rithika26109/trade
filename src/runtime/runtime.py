@@ -523,8 +523,8 @@ class Runtime:
                     ctx.notifier.send_trade_alert(
                         action=signal.signal.value,
                         symbol=signal.symbol,
-                        price=signal.price,
-                        quantity=signal.quantity,
+                        price=getattr(approved, "executed_price", signal.price),
+                        quantity=approved.quantity,
                         stop_loss=signal.stop_loss,
                         target=signal.target,
                         reason=signal.reason,

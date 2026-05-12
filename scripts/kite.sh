@@ -225,7 +225,7 @@ cmd_telegram() {
     exit 1
   fi
   if [[ -z "$TG_TOKEN" || -z "$TG_CHAT" ]]; then
-    echo "WARNING: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set in $ENV_FILE" >&2
+    echo "WARNING: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set (checked env and $ENV_FILE)" >&2
     echo "Message (not sent): $msg"
     exit 0
   fi
@@ -233,8 +233,7 @@ cmd_telegram() {
   echo "── Sending Telegram ──"
   curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
     --data-urlencode "chat_id=${TG_CHAT}" \
-    --data-urlencode "text=${msg}" \
-    -d "parse_mode=Markdown" | pretty_json
+    --data-urlencode "text=${msg}" | pretty_json
 }
 
 # ── Dispatch ──────────────────────────────────────────────────────

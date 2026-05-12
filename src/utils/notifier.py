@@ -64,7 +64,6 @@ class Notifier:
             payload = {
                 "chat_id": settings.TELEGRAM_CHAT_ID,
                 "text": message,
-                "parse_mode": "HTML",
             }
             resp = requests.post(url, json=payload, timeout=10)
             resp.raise_for_status()
@@ -86,7 +85,7 @@ class Notifier:
         mode = "PAPER" if is_paper else "LIVE"
         emoji = "🟢" if action == "BUY" else "🔴"
         msg = (
-            f"{emoji} <b>[{mode}] {action} {symbol}</b>\n"
+            f"{emoji} [{mode}] {action} {symbol}\n"
             f"Price: Rs {price:.2f}\n"
             f"Qty: {quantity}\n"
             f"SL: Rs {stop_loss:.2f}\n"
@@ -108,10 +107,10 @@ class Notifier:
         mode = "PAPER" if is_paper else "LIVE"
         emoji = "✅" if pnl > 0 else "❌"
         msg = (
-            f"{emoji} <b>[{mode}] CLOSED {symbol}</b>\n"
+            f"{emoji} [{mode}] CLOSED {symbol}\n"
             f"Entry: Rs {entry_price:.2f}\n"
             f"Exit: Rs {exit_price:.2f}\n"
-            f"P&L: Rs {pnl:+.2f}\n"
+            f"PnL: Rs {pnl:+.2f}\n"
             f"Reason: {reason}"
         )
         self.send(msg)
@@ -123,12 +122,12 @@ class Notifier:
         emoji = "📈" if total_pnl >= 0 else "📉"
 
         msg = (
-            f"{emoji} <b>[{mode}] Daily Report</b>\n"
+            f"{emoji} [{mode}] Daily Report\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"Total Trades: {report.get('total_trades', 0)}\n"
             f"Wins: {report.get('wins', 0)} | Losses: {report.get('losses', 0)}\n"
             f"Win Rate: {report.get('win_rate', 0):.1f}%\n"
-            f"<b>Total P&L: Rs {total_pnl:+.2f}</b>\n"
+            f"Total PnL: Rs {total_pnl:+.2f}\n"
             f"Capital: Rs {report.get('capital', 0):,.2f}\n"
             f"━━━━━━━━━━━━━━━━━━"
         )

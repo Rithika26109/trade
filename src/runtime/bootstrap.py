@@ -106,6 +106,7 @@ class Bootstrap:
         # Order / position / risk
         ctx.order_manager = OrderManager(ctx.kite, market_data=ctx.market_data)
         ctx.order_manager.is_paper = ctx.mode == "paper"
+        ctx.order_manager.notifier = ctx.notifier
         ctx.position_manager = PositionManager(ctx.order_manager, db=ctx.db)
         ctx.risk_manager = RiskManager(ctx.order_manager, db=ctx.db)
         ctx.risk_manager.market_data = ctx.market_data
@@ -158,7 +159,7 @@ class Bootstrap:
                 logger.warning("Could not fetch margins, using configured capital")
 
         ctx.notifier.send(
-            f"🤖 Trading Bot started in <b>{ctx.mode.upper()}</b> mode\n"
+            f"🤖 Trading Bot started in {ctx.mode.upper()} mode\n"
             f"Strategy: {ctx.strategy.name}\n"
             f"Capital: Rs {ctx.risk_manager.capital:,.2f}"
         )
