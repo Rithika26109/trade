@@ -4,6 +4,18 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-12 (Tuesday) — Opening
+- NIFTY prior close: 23,815.85 (RANGING, -1.49% Mon)
+- Regime: RANGING/NORMAL | US CPI tonight (post-close, pre-print jitters)
+- Key gaps: HDFCBANK -1.14%, RELIANCE -1.06%, SUNPHARMA -1.12%, INFY -0.27%, ITC -0.15%
+- Hard avoids: TATAPOWER (Q4 results + analyst call today), BHARTIARTL (Q4 May 13 insider window), PNB (Q4 today + outside NIFTY50)
+- Bot status: RUNNING — ORB collection 09:15-09:30
+- Plan fix: daily_plan.json was stale (2026-05-11); applied 2026-05-12 plan from branch plan/2026-05-12
+- Risk overrides: max_trades=3, risk=1.0%, max_open=2
+- Watchlist (7): HDFCBANK, RELIANCE, ITC, SUNPHARMA, INFY, HCLTECH, HINDUNILVR — all `both` bias
+
+---
+
 ## 2026-05-11 (Monday) — EOD
 - Regime: TREND_DOWN (NIFTY ~23,932, -1.0% on day) | VIX: 18.29 (NORMAL)
 - Trades: 0 signal trades | Wins: 0 | Losses: 0 | Win Rate: N/A

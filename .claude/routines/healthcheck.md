@@ -6,7 +6,7 @@ model: claude-sonnet-4
 
 # Bot Healthcheck Routine
 
-You run at ~09:20 IST every weekday, ~15 minutes after `scripts/run_bot.sh`
+You run at ~09:15 IST every weekday, ~10 minutes after `scripts/run_bot.sh`
 is supposed to have launched the bot on the user's Mac. The launcher writes
 a heartbeat file and pushes it to this repo before execing `main.py`. Your
 job is to confirm that happened; if not, ping the user on Telegram.

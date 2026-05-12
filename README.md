@@ -118,15 +118,18 @@ bull/
 
 | Time (IST) | What happens |
 |---|---|
-| 06:30 | `scripts/refresh_kite_token.py` rotates the Kite access token |
+| 08:30 | `scripts/refresh_kite_token.py` rotates the Kite access token |
+| 08:35 | `claude-premarket` routine builds today's plan + watchlist |
 | 09:05 | `scripts/run_bot.sh` writes heartbeat, starts `caffeinate`, execs `main.py --paper` |
-| 09:15 | Market opens — bot collects opening range |
-| 09:20 | Cloud healthcheck verifies heartbeat |
+| 09:15 | Market opens — bot collects opening range; healthcheck verifies heartbeat |
+| 09:22 | `claude-market-open` reviews the opening auction |
 | 09:30 | Strategy loop goes active |
+| 12:03 | `claude-midday` mid-session review |
 | 15:15 | Bot stops taking new entries |
 | 15:20 | Square off all open positions |
+| 15:33 | `claude-daily-summary` grades the day + Telegram report |
 | 15:35 | `scripts/eod_commit.py` pushes journal + metrics |
-| 16:30 | Cloud routine grades the day |
+| Fri 16:07 | `claude-weekly-review` weekly recap |
 
 ---
 

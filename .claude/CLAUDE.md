@@ -75,8 +75,8 @@ TRADING_MODE=live python main.py
 All local scheduling uses **launchd** (`~/Library/LaunchAgents/com.trade.*.plist`).
 Unlike cron, launchd runs missed jobs when the Mac wakes from sleep.
 
-- **07:50 IST** — `com.trade.token-refresh` — rotates the Kite access token.
-- **08:03 IST** — `com.trade.claude-premarket` — morning research via Claude.
+- **08:30 IST** — `com.trade.token-refresh` — rotates the Kite access token.
+- **08:35 IST** — `com.trade.claude-premarket` — morning research via Claude.
 - **09:05 IST** — `com.trade.bot-launch` — writes heartbeat, starts `caffeinate`, execs `main.py --paper`.
 - **09:15 IST** — `com.trade.bot-healthcheck` — verifies bot is running, Telegram alert on failure.
 - **09:22 IST** — `com.trade.claude-market-open` — opening bell review via Claude.

@@ -17,7 +17,7 @@ morning plan approves.
 ┌─────────────────────────────┴───────────────────────────────────────┐
 │                      Local bot (your machine)                       │
 │                                                                     │
-│  06:30 IST  cron → refresh_kite_token.py (access token rotation)    │
+│  08:30 IST  cron → refresh_kite_token.py (access token rotation)    │
 │  09:05 IST  cron → scripts/run_bot.sh                               │
 │             ├── writes logs/bot_heartbeat.json → git push           │
 │             ├── caffeinate -i (keep Mac awake ~6h40m)               │
@@ -131,7 +131,7 @@ TOTP login only when the env var is absent).
 
 Earlier drafts of this doc described a separate 06:30 token-refresh
 routine. That's no longer needed because each routine logs in fresh via
-TOTP on startup. The local `scripts/refresh_kite_token.py` + 06:30 cron is
+TOTP on startup. The local `scripts/refresh_kite_token.py` + 08:30 cron is
 still useful for the **local bot** (which re-uses a cached token file
 across the day), but irrelevant to cloud routines.
 
@@ -244,7 +244,7 @@ should contain the shutdown line.
   system is on IST, rewrite to `5 9 * * 1-5` and also rewrite the
   token-refresh cron (`0 1` → `30 6`) to match, or you'll end up
   off by 5h30m.
-- **Mid-day crash:** the 09:20 healthcheck catches startup failures
+- **Mid-day crash:** the 09:15 healthcheck catches startup failures
   only. For crashes later in the session, `main.py` already sends a
   `🚨 Bot crashed` Telegram alert from its own error handler.
 - **To disable auto-run:** comment out the cron line. Everything else
@@ -291,7 +291,7 @@ settings caps — exactly the old behaviour.
 - [ ] `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` set on the cloud environment
       (used by `bot-healthcheck`).
 - [ ] `scripts/refresh_kite_token.py --dry-run` succeeded locally.
-- [ ] Local cron installed for 06:30 IST token rotation.
+- [ ] Local cron installed for 08:30 IST token rotation.
 - [ ] Local cron installed for 09:05 IST bot launch (`scripts/run_bot.sh`).
 - [ ] `bash scripts/run_bot.sh` on a weekend produced a heartbeat commit.
 - [ ] All four routines created in code.claude.com and armed
@@ -300,7 +300,7 @@ settings caps — exactly the old behaviour.
       `TRADING_MODE=paper python main.py`.
 - [ ] After first morning run, `config/daily_plan.json` exists and
       `python scripts/validate_plan.py config/daily_plan.json` prints `OK:`.
-- [ ] After first 09:20 healthcheck, `logs/journal/<today>.md` contains a
+- [ ] After first 09:15 healthcheck, `logs/journal/<today>.md` contains a
       `## Startup — PASS` section.
 
 ---

@@ -38,6 +38,12 @@ You are running in a **fresh cloud environment** — not on the user's local mac
 6. **You must run `python3 scripts/validate_plan.py config/daily_plan.json` and
    it must print `OK:` before you commit.**
 7. Keep commits to a single `plan: YYYY-MM-DD` commit. Do not amend history.
+8. **You MUST send the Telegram pre-market briefing as the final step (Step 8
+   below). The routine is NOT complete until Telegram returns HTTP 200 with
+   `"ok":true`. If you skip Telegram, the routine is considered FAILED even
+   if the plan was committed. Your final message MUST end with the literal
+   line `Telegram: sent (message_id=<N>)` or `Telegram: failed (<reason>)` —
+   no other completion phrasing is acceptable.**
 
 ## Context files — READ THESE FIRST (before doing anything else)
 
@@ -147,14 +153,58 @@ gh pr create \
 
 **Do NOT push directly to `main`.** Always use a branch + PR.
 
+### 8. Send Telegram briefing (MANDATORY — do not skip)
+
+This step is **non-optional**. Past runs have silently skipped it; that is now
+a hard failure. Do this AFTER the PR is opened, BEFORE you write your final
+summary message.
+
+In the cloud env, `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are environment
+variables (not in `config/.env`). Do NOT use `scripts/kite.sh telegram` here
+(it requires `config/.env` which does not exist in cloud). Use `curl` directly,
+the same way the healthcheck routine does:
+
+```bash
+TODAY=$(date -u +%Y-%m-%d)
+# Build a concise briefing (≤ 3500 chars). Plain text, no markdown asterisks
+# (Telegram's default parse mode is plain). Include: regime, top 3-5 watchlist
+# symbols with bias, risk overrides, PR link.
+MSG=$(cat <<EOF
+📋 Pre-market ${TODAY}
+Regime: <TRENDING_UP|TRENDING_DOWN|RANGING> / <LOW|NORMAL|HIGH> vol
+Watchlist (N): SYM1 (bias), SYM2 (bias), SYM3 (bias), ...
+Risk: max_trades=X, risk=Y%, max_open=Z
+Avoid: SYMA (reason), SYMB (reason)
+PR: <pr-url>
+Next: bot auto-launches 09:05, /market-open at 09:15.
+EOF
+)
+
+RESP=$(curl -sS --max-time 15 \
+  -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+  --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+  --data-urlencode "text=$MSG")
+echo "$RESP"
+```
+
+- The response JSON MUST contain `"ok":true`. Parse `result.message_id` and
+  remember it for your final summary line.
+- On HTTP/network failure, retry **once** after 5s. If the retry also fails,
+  record `telegram: failed (<short reason>)` and end your final summary with
+  `Telegram: failed (<reason>)` — do NOT silently omit it.
+- If `TELEGRAM_BOT_TOKEN` or `TELEGRAM_CHAT_ID` is empty, end your final
+  summary with `Telegram: skipped (missing secrets)`.
+
 ## Update files when done
 
 After generating the plan and journal entry, ensure:
 - `config/daily_plan.json` is created and validated.
 - `logs/journal/YYYY-MM-DD.md` has a `## Pre-Market` section with your full
   rationale (200-500 words).
-- Everything is committed and pushed so the next routine (healthcheck at 09:20)
+- Everything is committed and pushed so the next routine (healthcheck at 09:15)
   and the local bot (at 09:10) have fresh context.
+- **Telegram briefing was sent** (Step 8) and your final message ends with one
+  of the three exact lines listed in HARD RULE 8.
 
 ## Style
 

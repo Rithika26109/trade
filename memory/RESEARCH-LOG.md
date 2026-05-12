@@ -4,6 +4,32 @@ Daily market research, macro observations, and recurring patterns. Most recent f
 
 ---
 
+## 2026-05-12 Midday Update
+- Regime: RANGING; NIFTY 23,589 (-0.95% today, -1.49% Mon = -2.4% 2-day drawdown). Market drifting lower pre-US CPI.
+- VIX: 18.96 (NORMAL). Market weak but not panicking.
+- Bot: 2 paper trades open, both SELL, both aligned with bearish tape.
+  - **LT SELL** 10 shares @3903 | SL 3935.3 | Target 3838.4 | Current 3897.6 | P&L +Rs54 (+0.17R) — **RULE VIOLATION: 1-strategy only (VWAP_ST) AND not on today's watchlist**
+  - **SBIN SELL** 41 shares @970.3 | SL 980.9 | Target 949.1 | Current 967.8 | P&L +Rs103 (+0.24R) — 2-strategy confirmed (ORB+RSI_EMA) but **WATCHLIST VIOLATION: SBIN explicitly excluded from today's plan** (extreme negative tape note)
+- Total unrealized: +Rs157. Trades used: 2/3 max. 1 slot remaining.
+- No stop trail needed yet — both positions at <0.5R profit (trail triggers at +1R = breakeven move)
+- Scanner noon: SBIN leads (score 3.05), suggesting continued SELL momentum. LT score only 1.71 — confirms low conviction.
+- Pre-CPI (US, ~8:30 PM IST tonight) compressing afternoon range — institutional participation thin, expect lunch lull to persist past 1:30 PM today.
+- Afternoon watch: if either position hits 1R, trail stop to breakeven. No new entries before 1:30 PM; if taking a 3rd trade post-1:30 PM, require 2+ confirmations and only from today's watchlist.
+
+## 2026-05-11 Midday Update
+- Regime: TREND_DOWN all morning; NIFTY -1.0% to ~23,932 (prior close 24,176)
+- VIX: 18.29 (NORMAL) — not a high-volatility day, but market broadly weak
+- Bot: 0 trades, 0 open positions; 8 signals all correctly rejected under 2+ confirmation rule
+  - INFY ORB rejected (1-strat, score 64) at 10:55
+  - HDFCBANK RSI_EMA rejected x4 across 11:00, 11:50, 11:55, 12:00 (scores 54-61)
+  - RELIANCE ORB/RSI_EMA rejected x3 (11:00, 11:25, 11:30, 11:50 — scores 39-79)
+- Closest miss: RELIANCE ORB at 11:50, score=79 (threshold=80) — still only 1-strategy
+- RELIANCE generating repeated ORB signals — showing some direction; watch for 2-strategy align in afternoon
+- Scanner at noon: SBIN leads (score 3.30, high momentum) but SBIN is excluded (residual Q4 volatility + dividend record)
+- US CPI tomorrow (May 12) keeping institutional caution elevated — expect choppy afternoon
+- 2+ confirmation rule enforced in code correctly — this is the first full session with clean enforcement
+- Afternoon watch (post-1:30 PM): RELIANCE (ORB near-miss) and HDFCBANK (repeated RSI_EMA hits) are most likely to generate a valid 2-strategy entry if market finds direction
+
 ## 2026-05-06 Midday Update
 - Regime: Bot intraday regime = STRONG_TREND_UP (upgraded from daily plan RANGING by 11:58 AM)
 - SUNPHARMA (only trade): BUY 11 shares @1844.3 | SL 1818.4 | Target 1896.0 | Unrealized -Rs 12.94 (~-0.05R) | Stop safe, no trail needed yet
