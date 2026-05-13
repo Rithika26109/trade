@@ -4,6 +4,26 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-13 (Wednesday) — EOD
+- Regime: RANGING (NIFTY ~23,483, +0.44% intraday recovery vs -3.3% Mon-Tue) | VIX: 19.46 (NORMAL)
+- Trades: 5 entries | Wins: 0 | Losses: 4 | Win Rate: 0% | P&L: -Rs 469.55
+- Paper capital: ~Rs 97,422.25 (drawdown 2.58% from Rs 1,00,000 start)
+- Key trades: BUY SAIL @184.33→183.20 -Rs 166.15 (SL, 1-strat VWAP_ST), SELL RELIANCE @1356.0→1360.70 -Rs 95.94 (SL, 1-strat ORB), SELL INFY @1130.5→1135.70 -Rs 136.96 (SL, 1-strat ORB), SELL HCLTECH @1143.2→1145.10 -Rs 70.50 (EOD, 1-strat ORB, partial exit 29/34 shares; duplicate entry bug fired)
+- TATAPOWER correctly excluded (gap -6.55% > 2% wide-ORB threshold)
+- Notes: All 4 trades were 1-strategy — HIGH_CONVICTION_SCORE bypass (≥60) still firing despite MIN_CONFIRMATIONS=2. 3 SELL entries taken against a recovering NIFTY tape (+0.44% intraday) — all stopped out. HCLTECH duplicate-entry bug (same signal fired 13:30 and 13:32) and partial-exit (29/34 shares) — large orphan position likely. No bias vetoes (all watchlist on `both` bias).
+
+## 2026-05-13 (Wednesday) — Opening
+- NIFTY prior close: 23,379.55 (RANGING, -1.83% Tue | 2-day -3.3%)
+- Regime: RANGING/NORMAL flat open — SGX had hinted -0.23% gap-down; actual opens confirm flat/RANGING
+- TATAPOWER: **-6.55% GAP DOWN** (391.00 open vs 418.40 prev close) — AUTO-EXCLUDE (>2% rule, plan warned "avoid if >2%"); also showing V-bounce recovery intraday (LTP 404)
+- SAIL: flat open (+0.12%) but +4% intraday move in first 12 min — watch carefully, ORB may give breakout signal
+- Other gaps: RELIANCE -0.19%, HDFCBANK +0.21%, ITC +0.43%, HCLTECH +0.04%, HINDUNILVR +0.13%, INFY -0.32% — all within noise
+- Bot status: RUNNING ✓ — collecting ORB range 09:15-09:30, scanning starts 09:30
+- Risk overrides: max_trades=3, risk=1.0%, max_open=2 (tightened given 2-day drawdown + Fed hawkish)
+- Watchlist (8→7 effective): HDFCBANK, RELIANCE, SAIL, HINDUNILVR, ITC, HCLTECH, INFY (TATAPOWER excluded)
+
+---
+
 ## 2026-05-12 (Tuesday) — Opening
 - NIFTY prior close: 23,815.85 (RANGING, -1.49% Mon)
 - Regime: RANGING/NORMAL | US CPI tonight (post-close, pre-print jitters)
