@@ -113,10 +113,9 @@ class Bootstrap:
         # Paper-mode capital callback for rejection sim.
         ctx.order_manager._get_available_capital = lambda: ctx.risk_manager.capital
 
-        # Apply daily-plan risk overrides
+        # Apply daily-plan risk overrides (max_trades is NOT overridable)
         if ctx.daily_plan and ctx.daily_plan.risk_overrides:
             ctx.risk_manager.apply_runtime_overrides(
-                max_trades=ctx.daily_plan.risk_overrides.get("max_trades"),
                 risk_per_trade_pct=ctx.daily_plan.risk_overrides.get("risk_per_trade_pct"),
                 max_open_positions=ctx.daily_plan.risk_overrides.get("max_open_positions"),
             )

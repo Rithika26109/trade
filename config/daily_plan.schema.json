@@ -32,10 +32,9 @@
     },
     "risk_overrides": {
       "type": "object",
-      "description": "Runtime caps for today. Bot clamps to settings.py caps; never loosens them.",
+      "description": "Runtime caps for today. Bot clamps to settings.py caps; never loosens them. NOTE: max_trades is NOT overridable here — it is fixed by settings.MAX_TRADES_PER_DAY.",
       "additionalProperties": false,
       "properties": {
-        "max_trades": { "type": "integer", "minimum": 0, "maximum": 10 },
         "risk_per_trade_pct": { "type": "number", "minimum": 0.1, "maximum": 5.0 },
         "max_open_positions": { "type": "integer", "minimum": 0, "maximum": 5 }
       }

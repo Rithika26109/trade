@@ -67,11 +67,20 @@ def test_date_mismatch_fails():
 def test_risk_override_above_cap_fails():
     bad = _base_plan()
     bad["risk_overrides"] = {
-        "max_trades": settings.MAX_TRADES_PER_DAY + 1,
+        "risk_per_trade_pct": settings.RISK_PER_TRADE_PCT + 1.0,
     }
     errors = validate_plan.validate(bad)
     assert errors
-    assert any("max_trades" in e for e in errors)
+    assert any("risk_per_trade_pct" in e for e in errors)
+
+
+def test_max_trades_in_overrides_rejected_by_schema():
+    """max_trades is no longer a permitted risk_overrides key."""
+    bad = _base_plan()
+    bad["risk_overrides"] = {"max_trades": 3}
+    errors = validate_plan.validate(bad)
+    assert errors
+    assert any("schema" in e.lower() or "max_trades" in e for e in errors)
 
 
 def test_duplicate_symbol_fails():

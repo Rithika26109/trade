@@ -62,7 +62,8 @@ class RiskManager:
         # Set by RiskManager.apply_runtime_overrides() at startup. Each
         # override is already clamped to the settings cap by plan_loader,
         # but we re-clamp here as defence in depth. None means "use settings".
-        self._override_max_trades: int | None = None
+        # NOTE: max_trades is NOT overridable by daily_plan — it is a hard
+        # cap from settings.MAX_TRADES_PER_DAY only.
         self._override_risk_pct: float | None = None
         self._override_max_positions: int | None = None
 
@@ -87,10 +88,8 @@ class RiskManager:
     # ── Runtime-override accessors (daily-plan driven) ──────────────────
 
     def _effective_max_trades(self) -> int:
-        cap = settings.MAX_TRADES_PER_DAY
-        if self._override_max_trades is None:
-            return cap
-        return min(cap, int(self._override_max_trades))
+        # max_trades is no longer overridable by daily_plan; use settings only.
+        return settings.MAX_TRADES_PER_DAY
 
     def _effective_max_positions(self) -> int:
         cap = settings.MAX_OPEN_POSITIONS
@@ -107,7 +106,7 @@ class RiskManager:
     def apply_runtime_overrides(
         self,
         *,
-        max_trades: int | None = None,
+        max_trades: int | None = None,  # accepted for backward-compat; ignored
         risk_per_trade_pct: float | None = None,
         max_open_positions: int | None = None,
     ) -> dict[str, float]:
@@ -116,11 +115,17 @@ class RiskManager:
         All overrides are clamped to the settings caps (tighter-only). Passing
         None for an argument leaves that override unchanged. Returns the
         effective cap dict after applying.
+
+        NOTE: ``max_trades`` is intentionally NOT honoured — the daily-trade
+        cap is fixed at ``settings.MAX_TRADES_PER_DAY``. The argument is kept
+        for backward compatibility but emits a warning if supplied.
         """
         if max_trades is not None:
-            v = max(1, min(int(max_trades), settings.MAX_TRADES_PER_DAY))
-            self._override_max_trades = v
-            logger.info(f"[RISK] Override: max_trades = {v} (cap={settings.MAX_TRADES_PER_DAY})")
+            logger.warning(
+                f"[RISK] daily_plan.max_trades={max_trades} ignored — "
+                f"max_trades is no longer overridable; using settings cap "
+                f"{settings.MAX_TRADES_PER_DAY}"
+            )
         if risk_per_trade_pct is not None:
             v = max(0.1, min(float(risk_per_trade_pct), settings.RISK_PER_TRADE_PCT))
             self._override_risk_pct = v

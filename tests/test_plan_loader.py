@@ -73,14 +73,13 @@ def test_risk_overrides_clamp_to_settings_caps(tmp_path):
         "version": 1,
         "watchlist": [{"symbol": "RELIANCE", "bias": "long", "conviction": 3}],
         "risk_overrides": {
-            "max_trades": settings.MAX_TRADES_PER_DAY + 100,
             "risk_per_trade_pct": settings.RISK_PER_TRADE_PCT + 5,
             "max_open_positions": settings.MAX_OPEN_POSITIONS + 10,
         },
     })
     plan = plan_loader.load_plan(p)
     assert plan is not None
-    assert plan.risk_overrides["max_trades"] == settings.MAX_TRADES_PER_DAY
+    assert "max_trades" not in plan.risk_overrides
     assert plan.risk_overrides["risk_per_trade_pct"] == settings.RISK_PER_TRADE_PCT
     assert plan.risk_overrides["max_open_positions"] == settings.MAX_OPEN_POSITIONS
 
@@ -91,13 +90,12 @@ def test_risk_overrides_tighter_passes_through(tmp_path):
         "version": 1,
         "watchlist": [{"symbol": "RELIANCE", "bias": "long", "conviction": 3}],
         "risk_overrides": {
-            "max_trades": 2,
             "risk_per_trade_pct": 0.5,
             "max_open_positions": 1,
         },
     })
     plan = plan_loader.load_plan(p)
-    assert plan.risk_overrides["max_trades"] == 2
+    assert "max_trades" not in plan.risk_overrides
     assert plan.risk_overrides["risk_per_trade_pct"] == 0.5
     assert plan.risk_overrides["max_open_positions"] == 1
 

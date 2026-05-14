@@ -8,7 +8,6 @@
     "notes": "NIFTY consolidating below 22,400 resistance. US closed flat overnight. No major domestic catalysts."
   },
   "risk_overrides": {
-    "max_trades": 4,
     "risk_per_trade_pct": 0.75,
     "max_open_positions": 2
   },

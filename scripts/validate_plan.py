@@ -43,7 +43,6 @@ def _load_settings_caps() -> dict[str, float]:
     text = settings_file.read_text()
     caps: dict[str, float] = {}
     patterns = {
-        "max_trades": r"^MAX_TRADES_PER_DAY\s*=\s*(\d+)",
         "risk_per_trade_pct": r"^RISK_PER_TRADE_PCT\s*=\s*([0-9.]+)",
         "max_open_positions": r"^MAX_OPEN_POSITIONS\s*=\s*(\d+)",
     }

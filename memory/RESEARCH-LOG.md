@@ -4,6 +4,16 @@ Daily market research, macro observations, and recurring patterns. Most recent f
 
 ---
 
+## 2026-05-13 Midday Update
+- Regime: RANGING; NIFTY 23,483 (+0.44% today — recovery bounce after -3.3% Mon-Tue cumulative drawdown)
+- VIX: 19.46 (NORMAL). Vol regime: LOW — favorable for ORB, less whipsaw.
+- Bot: 0 trades, 0 open positions. Zero signals fired or all rejected — lunch lull beginning.
+- Scanner noon leaders (daily-plan eligible only): SAIL 2.73, TATAPOWER 2.70, RELIANCE 2.67, HDFCBANK 2.62
+  - SBIN tops raw scanner at 3.04 but is a hard avoid (Q4 miss + General Meeting May 15)
+- Risk headroom: 0/3 trades used, full Rs 3,000 daily loss budget intact
+- Afternoon context: NIFTY recovering into lunch; typical 12:00–1:30 PM volume compression. Best setups after 1:30 PM when institutional flow resumes.
+- Watch: SAIL (metals proxy, high score, both-bias conviction=3) and TATAPOWER (post-Q4 beat momentum) for 2+ strategy confirmation setups after 1:30 PM. HDFCBANK sole bank — monitor VWAP.
+
 ## 2026-05-12 Midday Update
 - Regime: RANGING; NIFTY 23,589 (-0.95% today, -1.49% Mon = -2.4% 2-day drawdown). Market drifting lower pre-US CPI.
 - VIX: 18.96 (NORMAL). Market weak but not panicking.

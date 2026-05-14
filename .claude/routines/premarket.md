@@ -98,6 +98,9 @@ Pick **8 symbols** for today's watchlist (this matches `SCANNER_TOP_N=8` in `con
 
 Tighten `risk_overrides` if the context warrants: losing streak in recent
 journals, HIGH vol regime, major macro event. Never exceed settings caps.
+Only two fields are honoured: `risk_per_trade_pct` and `max_open_positions`.
+**Do NOT set `max_trades`** — it is fixed by `settings.MAX_TRADES_PER_DAY` and
+any value here is ignored by the bot.
 
 ### 4. Write the plan
 Create `config/daily_plan.json` conforming to `config/daily_plan.schema.json`.
@@ -173,7 +176,7 @@ MSG=$(cat <<EOF
 📋 Pre-market ${TODAY}
 Regime: <TRENDING_UP|TRENDING_DOWN|RANGING> / <LOW|NORMAL|HIGH> vol
 Watchlist (N): SYM1 (bias), SYM2 (bias), SYM3 (bias), ...
-Risk: max_trades=X, risk=Y%, max_open=Z
+Risk: risk=Y%, max_open=Z
 Avoid: SYMA (reason), SYMB (reason)
 PR: <pr-url>
 Next: bot auto-launches 09:05, /market-open at 09:15.

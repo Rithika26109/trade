@@ -115,10 +115,11 @@ def load_plan(path: Path | None = None) -> DailyPlan | None:
         return None
 
     # ── Clamp risk overrides to settings caps. NEVER loosen. ──
+    # NOTE: max_trades is intentionally absent — it is fixed by
+    # settings.MAX_TRADES_PER_DAY and cannot be overridden per-day.
     raw_overrides = raw.get("risk_overrides") or {}
     if isinstance(raw_overrides, dict):
         caps = {
-            "max_trades": settings.MAX_TRADES_PER_DAY,
             "risk_per_trade_pct": settings.RISK_PER_TRADE_PCT,
             "max_open_positions": settings.MAX_OPEN_POSITIONS,
         }

@@ -36,21 +36,21 @@ def test_no_override_returns_settings_caps(rm):
 
 def test_apply_overrides_tighter(rm):
     out = rm.apply_runtime_overrides(
-        max_trades=2,
         risk_per_trade_pct=0.3,
         max_open_positions=1,
     )
-    assert out["max_trades"] == 2
+    # max_trades is no longer overridable — effective stays at settings cap.
+    assert out["max_trades"] == settings.MAX_TRADES_PER_DAY
     assert out["risk_per_trade_pct"] == 0.3
     assert out["max_open_positions"] == 1
-    assert rm._effective_max_trades() == 2
+    assert rm._effective_max_trades() == settings.MAX_TRADES_PER_DAY
     assert rm._effective_max_positions() == 1
     assert rm._effective_risk_pct() == 0.3
 
 
 def test_apply_overrides_clamps_attempted_loosening(rm):
     rm.apply_runtime_overrides(
-        max_trades=settings.MAX_TRADES_PER_DAY + 10,
+        max_trades=settings.MAX_TRADES_PER_DAY + 10,  # ignored with warning
         risk_per_trade_pct=settings.RISK_PER_TRADE_PCT + 5,
         max_open_positions=settings.MAX_OPEN_POSITIONS + 3,
     )
@@ -60,10 +60,16 @@ def test_apply_overrides_clamps_attempted_loosening(rm):
 
 
 def test_partial_override_leaves_others_default(rm):
-    rm.apply_runtime_overrides(max_trades=1)
-    assert rm._effective_max_trades() == 1
+    rm.apply_runtime_overrides(risk_per_trade_pct=0.5)
+    assert rm._effective_max_trades() == settings.MAX_TRADES_PER_DAY
     assert rm._effective_max_positions() == settings.MAX_OPEN_POSITIONS
-    assert rm._effective_risk_pct() == settings.RISK_PER_TRADE_PCT
+    assert rm._effective_risk_pct() == 0.5
+
+
+def test_max_trades_override_is_ignored(rm):
+    """max_trades is fixed by settings; daily_plan cannot tighten or loosen it."""
+    rm.apply_runtime_overrides(max_trades=1)
+    assert rm._effective_max_trades() == settings.MAX_TRADES_PER_DAY
 
 
 def test_adjusted_risk_pct_honours_override(rm):
@@ -80,7 +86,7 @@ def test_adjusted_risk_pct_honours_override(rm):
 
 
 def test_get_status_reflects_overrides(rm):
-    rm.apply_runtime_overrides(max_trades=3, max_open_positions=1)
+    rm.apply_runtime_overrides(max_open_positions=1)
     status = rm.get_status()
-    assert status["max_trades"] == 3
+    assert status["max_trades"] == settings.MAX_TRADES_PER_DAY
     assert status["max_positions"] == 1

@@ -8,7 +8,6 @@
     "notes": "NIFTY closed 23,379.55 (-1.83% Tue) — 2-session cumulative -3.3% from Mon-Tue. SGX Nifty -0.23% (~23,369) implies mild gap-down. US overnight: SPX -0.16%, NDQ -0.71% (tech sell-off, AI/semis weak). USD/INR 95.81 (+1.28%, rupee weak — IT exporter tailwind partially offset by US tech weakness). Crude Brent $107.10 (elevated, bearish India macro). VIX API unavailable; treat as NORMAL given orderly tape. US April CPI 3.8% hot — Fed hawkish overhang. No major India earnings today; SBIN Q4 missed Mon (-11% 2-day), TATAPOWER Q4 beat Mon (+8.3% PAT). Daily regime RANGING but tape carries downward drift — avoid directional bias, treat 09:45 VWAP as bias-flip trigger."
   },
   "risk_overrides": {
-    "max_trades": 3,
     "risk_per_trade_pct": 1.0,
     "max_open_positions": 2
   },
