@@ -25,12 +25,12 @@ Weekly performance summaries and meta-learning. Most recent first.
 
 | Metric | Value |
 |--------|-------|
-| Weeks completed | 3 |
-| Cumulative P&L | -Rs 2,108.20 (paper) |
-| Overall win rate | 43% (10W / 23T) |
+| Weeks completed | 4 |
+| Cumulative P&L | -Rs 3,856.08 (paper) |
+| Overall win rate | 35% (14W / 40T entries) |
 | Best strategy | VWAP+ST (small sample, 1W/2T net +Rs 49) |
-| Total trades | 23 (paper) |
-| Sessions completed | 10 + 2 holidays |
+| Total trades | 40 entries (paper) |
+| Sessions completed | 15 + 2 holidays |
 
 ---
 
@@ -38,23 +38,65 @@ Weekly performance summaries and meta-learning. Most recent first.
 
 _Active targets for self-improvement. Updated weekly._
 
-1. **Enforce 2+ confirmation in code, including high-score path** — close the
-   high-score bypass loophole that produced losers on May 6 (SUNPHARMA) and
-   May 7 (INFY). The MIN_CONFIRMATIONS gate must apply even when conviction
-   score is high.
-2. **Bias must adapt intraday** — if a `long`-biased stock is below VWAP at
-   09:45, demote to `both` automatically. Three sessions of blocked profitable
-   counter-trend signals this week (TATAPOWER, TCS, HDFCBANK).
-3. **Partial qty EOD square-off bug in `order_manager.py`** — must reconcile
-   to 0 open qty at 15:15. Recurred 4× this week (HDFCBANK, SUNPHARMA, RELIANCE).
-4. **`already_stopped_today` veto in code** — PNB ×3 on May 5 and ADANIENT ×2
-   on May 4 prove the rule is still doc-only after 3 weeks.
-5. **Scanner allowlist enforcement** — May 8 bot picked BHARTIARTL/PNB/KOTAKBANK
-   despite plan's hard-avoid; out-of-watchlist symbols still slip through.
+1. **Remove or raise HIGH_CONVICTION_SCORE bypass** — the bypass at score=60
+   has been the single biggest cost in W19 + W20 (~Rs 1,750 paper losses).
+   12 of 14 entries on the 3 losing W20 sessions were 1-strategy. Raise to
+   ≥90 (unreachable on normal tape) or delete it. The 2+ confirmation gate
+   must be unconditional.
+2. **`max_trades` override semantics** — plan sets `max_trades=3` but bot
+   uses `settings.MAX_TRADES_PER_DAY=7` (Thu May 14 took 5). Either honor
+   the override at the orchestrator or strip the field from plans entirely.
+3. **Daily plan freshness gate** — bot must refuse to launch if
+   `daily_plan.date != today`. May 14 ran on the May 13 plan for a second
+   day; the pre-market routine didn't produce a fresh plan.
+4. **Post-restart entry cooldown** — bot crashed at 09:40 May 15, entered
+   HDFCBANK and HCLTECH at 09:46 (1 min after restart) before any valid
+   ORB. Add ≥15-min cooldown after crash-restart or hold entries until ORB
+   window is explicitly confirmed fresh.
+5. **Partial qty EOD square-off** (carry from W19) — must reconcile to 0
+   open qty at 15:15. Fired again on TATAPOWER May 15 (74 in, 56 closed,
+   18 orphan). Third consecutive week.
+6. **Scanner allowlist enforcement** (carry from W19) — May 14 traded PNB
+   (outside NIFTY 50) and SBIN (HARD AVOID). Still no order-path filter.
+7. **`already_stopped_today` veto** (carry from W17/W18) — same-stock
+   re-entry after SL is unblocked at the order path.
 
 ---
 
 <!-- Weekly summaries will be prepended here by /weekly-review command -->
+
+## Week 2026-W20 (Mon May 11 - Fri May 15) — Code-Side Drag
+
+- Days traded: 5 (no holiday)
+- Total P&L: **-Rs 1,356.92** (paper) — 1 green day, 3 red, 1 flat
+- Win rate: ~24% (4W / 17T entries; 4W / 16T closed)
+- Best day: 2026-05-12 (+Rs 390.96, 3W/0L on 100% rule-compliant entries)
+- Worst day: 2026-05-15 (-Rs 645.61, 0W/4L, bot crash + 3 of 4 entries 1-strategy)
+- Per-day: Mon 0 (clean no-trade), Tue +391, Wed -470, Thu -633, Fri -646
+- Strategy breakdown: ORB 0W/8T, RSI+EMA 1W/2T, VWAP+ST 0W/4T, MULTI 3W/3T (Tue)
+- Regime prediction accuracy: 4/5 — plan calls were correct on all 5 days;
+  only miss was bot-side false-positive TREND_UP detection post-restart Fri
+- Bias veto count: 0 — `both` default applied every day, zero opportunity cost
+- Promoted lessons:
+  - HIGH_CONVICTION_SCORE bypass is the dominant cost (12/14 losing-session
+    entries were 1-strategy) — promote to top-priority code fix
+  - SELL ORB on a recovering NIFTY tape (>+0.3% by 10:00) lost 6/6 — added
+    counter-tape SELL caveat to premarket.md
+  - Stale daily_plan ran a second day on May 14 — add freshness gate
+  - Bot crashed pre-ORB on May 15 with immediate re-entry — needs cooldown
+- What worked: Mon's MIN_CONFIRMATIONS=2 enforced cleanly (8 rejections, 0
+  bypass leaks); Tue's three rule-compliant entries all won; default `both`
+  bias eliminated W19's bias-veto opportunity cost; sector hard-avoids held
+- Key finding: With prompt-side discipline now tight (W19 lessons all applied),
+  losses are concentrated on losing-session days where the bot's high-score
+  bypass produces 1-strategy entries. The prompt cannot fix this; only code
+  can. Tue's 100% win rate proves the gate works *when honored*.
+- Changes this week: 4 additive premarket.md edits applied (sector-cluster
+  Gemini ask; bias default + stale-bias check; counter-tape SELL caveat;
+  open-code-bugs list in Style); HARD RULES preserved verbatim
+- Next week goals: Apply W19+W20 code-fix backlog in order — HIGH_CONVICTION
+  bypass first, then stale-plan gate, then post-restart cooldown, then
+  partial-qty EOD
 
 ## Week 2026-W19 (Mon May 04 - Fri May 08) — Worst Week to Date
 

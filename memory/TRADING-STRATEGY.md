@@ -1,6 +1,6 @@
 # Active Trading Strategy
 
-Last updated: 2026-05-11
+Last updated: 2026-05-16 (W20 weekly meta-review)
 
 ## Current Mode: PAPER
 
@@ -120,3 +120,8 @@ _Updated by /weekly-review and /daily-summary commands. Most recent first._
 - **#lesson 2026-W19 (promoted):** High-score bypass loophole let 1-strategy entries through MIN_CONFIRMATIONS gate twice (SUNPHARMA May 6, INFY May 7 — both lost). The 2+ confirmation rule must apply unconditionally, regardless of score.
 - **#lesson 2026-W19 (promoted):** Banking-cluster Q4 days (May 5 LT/PNB, May 8 SBI/BoB) leak volatility to neighbours with no event of their own. On big-bank-print days, keep at most one bank in the watchlist with `both` bias.
 - **#lesson 2026-W19 (promoted):** Partial-qty EOD square-off recurred 4× this week (HDFCBANK 50/51 May 6, 8/44 May 7, SUNPHARMA 6/11 May 6, RELIANCE 27→17 May 5). True position P&L is unknown when most shares orphan overnight in paper mode — fix `order_manager.py` before adding any new feature.
+- **#lesson 2026-W20 (promoted):** HIGH_CONVICTION_SCORE bypass at 60 is the dominant source of losses. 12 of 14 entries on the three losing W20 sessions were 1-strategy (Wed 4/4, Thu 5/5, Fri 3/4); on Tue when every entry honoured 2+ confirmations, win rate was 100% (3/3). Bypass must be raised to ≥90 (effectively unreachable) or removed entirely. The 2+ confirmation gate must be unconditional.
+- **#lesson 2026-W20 (promoted):** SELL ORB on a recovering NIFTY tape (>+0.3% intraday by 10:00) is systematically low-quality — 6/6 short entries stopped out (Wed 3, Thu 3). Pre-market plan should flag the recovery setup in `rationale` and `notes`; in code, require a second strategy aligned with the short before any SELL entry whenever NIFTY is positive intraday.
+- **#lesson 2026-W20 (promoted):** Daily plan must be fresh — Thu May 14 ran on Wed's plan because no May 14 plan was produced. Healthcheck/bot launch should refuse to start unless `daily_plan.json` carries today's IST date.
+- **#lesson 2026-W20 (promoted):** Bot crash-restart needs a cooldown — Fri May 15 09:40 DNS crash, 09:45 restart, 09:46 entries on HDFCBANK and HCLTECH (1 min later, 1-strategy each, no valid ORB). Add ≥15-minute post-restart entry hold or require explicit ORB-fresh confirmation.
+- **#lesson 2026-W20 (promoted):** Default `both` bias is now proven safe — applied all 5 W20 sessions, zero bias-veto opportunity cost (vs W19's 13+5). Reserve `long`/`short` for confirmed multi-day trends, just-resolved binaries, or extreme sector dislocation only.
