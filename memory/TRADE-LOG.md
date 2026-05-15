@@ -4,6 +4,21 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-15 (Friday) — EOD
+- Regime: RANGING (NIFTY +0.23% midday, mild gap-up recovery) | VIX: 18.48 (NORMAL)
+- Trades: 4 | Wins: 0 | Losses: 4 | Win Rate: 0% | P&L: -Rs 645.61
+- Paper capital: ~Rs 96,143.92 (drawdown 3.86% from Rs 1,00,000 start)
+- Key trades: BUY HDFCBANK @780.0→776.2 -Rs 211.35 (SL, 1-strat VWAP_ST, post-restart entry 09:46), BUY HCLTECH @1144.0→1138.1 -Rs 221.68 (SL, 1-strat VWAP_ST, post-restart entry 09:46), BUY HINDUNILVR @2280.0→2274.4 -Rs 91.10 (SL, 2-strat ORB+VWAP_ST ✓), BUY TATAPOWER @410.35→408.45 -Rs 121.49 (SL, 1-strat ORB, partial exit: 74 in / 56 closed)
+- Notes: Bot crashed 09:40 (DNS), restarted 09:45. HDFCBANK + HCLTECH entered at 09:46 (1 min post-restart, no valid ORB) on VWAP_ST only. 3/4 entries = 1-strategy. Partial exit bug: TATAPOWER 18 shares orphaned. HINDUNILVR (2-strat compliant) was the only clean-process entry — still lost. Hard avoids (SAIL, SBIN, BPCL) correctly held.
+
+## 2026-05-15 (Friday) — Opening
+- NIFTY: +1.18% recovery (NIFTY 23,689.6 prev close); SGX gap-up +0.49% (~23,845)
+- Regime: RANGING / LOW vol — US ATHs (SPX +0.78%, NDQ +0.88%), IT tailwind (NDQ + weak rupee USD/INR 95.77)
+- Hard avoids: SAIL (Q4 board meet today — binary), SBIN (AGM today — binary), BPCL (trading window closed)
+- ORB ranges: TATAPOWER 1.18% ✓ | HDFCBANK 1.83% ✓ | RELIANCE 1.19% ✓ | HINDUNILVR 0.92% ✓ | INFY 2.66% ⚠️ | HCLTECH 2.69% ⚠️ | TCS 2.35% ⚠️ | DLF 2.66% ⚠️ (wide ORB >2% — auto-exclude rules apply)
+- Bot status: CRASHED 09:40 (DNS failure during network blip); restarted 09:45 — trading loop active. ORB window missed.
+- Capital: ~Rs 96,789.53 (paper, drawdown 3.21%)
+
 ## 2026-05-14 (Thursday) — EOD
 - Regime: RANGING (NIFTY +1.02% intraday recovery, prior close 23,379.55) | VIX: 18.94 (NORMAL)
 - Trades: 5 | Wins: 1 | Losses: 4 | Win Rate: 20% | P&L: -Rs 632.72
