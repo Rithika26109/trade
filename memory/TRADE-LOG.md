@@ -4,6 +4,28 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-14 (Thursday) — EOD
+- Regime: RANGING (NIFTY +1.02% intraday recovery, prior close 23,379.55) | VIX: 18.94 (NORMAL)
+- Trades: 5 | Wins: 1 | Losses: 4 | Win Rate: 20% | P&L: -Rs 632.72
+- Paper capital: ~Rs 96,789.53 (drawdown 3.21% from Rs 1,00,000 start)
+- Key trades: BUY PNB @104.23→103.75 -Rs 216.26 (SL, 1-strat VWAP_ST, outside NIFTY 50), SELL TATAPOWER @402.25→405.25 -Rs 325.07 (SL, 1-strat ORB, sold into recovery), SELL HDFCBANK @747.35→750.95 -Rs 203.18 (SL, 1-strat ORB, sold into recovery), BUY SBIN @972.1 partial→exit +Rs 315.38 (HARD AVOID: Q4+AGM May 15, 1-strat VWAP_ST — only winner), BUY RELIANCE @1376.0→1369.3 -Rs 203.58 (SL, 1-strat ORB)
+- Notes: 5 trades vs max_trades=3 override (cap not enforced). All 5 entries = 1-strategy. 2 hard-avoid stocks traded (PNB outside universe, SBIN AGM day). 3 SELL entries taken into NIFTY recovery — all hit SL. No May 14 plan existed — bot ran on May 13 plan for 2nd day. Irony: only winner was SBIN (hard avoid). Daily loss budget: Rs 632.72 of ~Rs 2,923 (21.7%).
+
+## 2026-05-14 (Thursday) — Opening
+- NIFTY prior close: 23,379.55 (RANGING, 2-day -3.3% Mon-Tue, +0.44% Wed recovery)
+- Regime: No May 14 daily_plan.json found — bot running on May 13 plan (RANGING/NORMAL)
+- Key gaps: Quote API returning errors at open (normal early-market lag) — gaps not measured
+- Bot status: RUNNING ✓ — PID active, collecting ORB range 09:15-09:30
+- ⚠️ Scanner selected: SBIN, SAIL, TATAPOWER, TCS, HDFCBANK, RELIANCE, ETERNAL, PNB
+  - SBIN: AVOID (Q4 miss + General Meeting May 15) — scanner should not have picked this
+  - TCS: AVOID (NCW harassment + 52-wk low) — scanner should not have picked this
+  - ETERNAL, PNB: outside NIFTY 50 allowlist (#lesson 2026-05-05)
+  - Valid picks from scanner: SAIL, TATAPOWER, HDFCBANK, RELIANCE
+- Risk overrides: max_trades=3, risk=1.0%, max_open=2 (carried from May 13 plan)
+- Watchlist (effective, manual): SAIL, TATAPOWER, HDFCBANK, RELIANCE only
+
+---
+
 ## 2026-05-13 (Wednesday) — EOD
 - Regime: RANGING (NIFTY ~23,483, +0.44% intraday recovery vs -3.3% Mon-Tue) | VIX: 19.46 (NORMAL)
 - Trades: 5 entries | Wins: 0 | Losses: 4 | Win Rate: 0% | P&L: -Rs 469.55
