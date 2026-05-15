@@ -88,6 +88,12 @@ python3 scripts/gemini_research.py stocks SYM1,SYM2,...,SYM10
 Read the JSON output from each call. The `content` field has the research text.
 - Flag any stock with binary event risk today (results, court rulings,
   major product launches). Those should usually be `avoid`.
+- **Sector-cluster check (W19/W20 lesson).** Ask Gemini explicitly: *"which
+  other companies in the same sector as <my watchlist> print Q4 results or
+  hold their AGM today?"* Big-bank Q4 days (SBI, BoB, KOTAK, ICICI, AXIS,
+  HDFC) leak volatility to every neighbour. If two or more banks print on
+  the same day, keep at most one bank in your watchlist and prefer `both`
+  bias on it.
 
 ### 3. Decision
 Pick **8 symbols** for today's watchlist (this matches `SCANNER_TOP_N=8` in `config/settings.py`). Only drop below 8 if conviction is genuinely thin — explain why in `rationale`. Never exceed 10. For each, set:
@@ -96,11 +102,36 @@ Pick **8 symbols** for today's watchlist (this matches `SCANNER_TOP_N=8` in `con
 - `conviction`: 1-5. 5 = strongest idea. Purely informational in v1.
 - `notes`: one sentence on the catalyst, key level, or what would invalidate.
 
+**Bias default — prefer `both` (W19/W20 promoted heuristic).** Default to
+`both` over `long`/`short` unless the catalyst is robust to intraday price
+action. A fundamental tailwind (weak USD/INR for IT, falling crude for
+refiners, JV announcement for power) is not the same as intraday directional
+follow-through. W19 lost opportunity 3× (TATAPOWER May 6; TCS, HDFCBANK
+May 8) when `long` bias blocked profitable SELL signals on stocks trading
+below VWAP all morning. W20 confirmed: every day used `both` and zero bias
+vetoes cost a profitable signal. Reserve `long`/`short` for (a) a confirmed
+multi-day trend in the same direction, (b) an imminent binary that has just
+resolved cleanly, or (c) extreme sector dislocation.
+
+**Stale-bias check.** Any symbol carried over from yesterday's plan must
+have its bias re-justified from today's tape, not yesterday's catalyst. If
+you cannot articulate why today's tape supports a directional bias in one
+sentence, demote to `both`.
+
+**Counter-tape SELL caveat (W20).** If overnight indicators or the open
+suggest NIFTY will recover >+0.3% by 10:00 (e.g. gap-up + positive Asian
+session + supportive US close), call this out in the `rationale` and in
+each SELL-leaning symbol's `notes`. W20 evidence: 6 SELL ORB entries fired
+into recovering NIFTY tape (Wed May 13 ×3, Thu May 14 ×3) and all 6 stopped
+out. The 2+ confirmation gate alone is not enough to filter this — flag it
+in the plan so the strategist does not over-weight short catalysts at open.
+
 Tighten `risk_overrides` if the context warrants: losing streak in recent
 journals, HIGH vol regime, major macro event. Never exceed settings caps.
 Only two fields are honoured: `risk_per_trade_pct` and `max_open_positions`.
 **Do NOT set `max_trades`** — it is fixed by `settings.MAX_TRADES_PER_DAY` and
-any value here is ignored by the bot.
+any value here is ignored by the bot (confirmed again May 14: plan said
+`max_trades=3`, bot took 5).
 
 ### 4. Write the plan
 Create `config/daily_plan.json` conforming to `config/daily_plan.schema.json`.
@@ -220,3 +251,18 @@ After generating the plan and journal entry, ensure:
   in your rationale.
 - If premarket_context.py returned zero scanner candidates, fall back to the
   top 8 from `config/settings.py::WATCHLIST` and say so in your rationale.
+- **Open code bugs to flag every morning** (in the journal's pre-market
+  section under "Open code bugs"), until they are fixed in `src/`:
+  1. `HIGH_CONVICTION_SCORE` bypass at 60 still lets 1-strategy entries
+     through the MIN_CONFIRMATIONS=2 gate (W19+W20 evidence: ~Rs 1,750
+     paper losses across both weeks).
+  2. `max_trades` override in `daily_plan.json` is ignored — fixed cap is
+     `settings.MAX_TRADES_PER_DAY`. Don't set it; tighten via
+     `max_open_positions` and `risk_per_trade_pct` instead.
+  3. Partial-qty EOD square-off bug in `order_manager.py` — recurred each
+     week since W18.
+  4. Scanner allowlist drift — symbols outside `config/settings.py::WATCHLIST`
+     and outside the daily plan still leak in (May 8 BHARTIARTL/PNB/KOTAK,
+     May 14 PNB+SBIN).
+  5. No post-restart entry cooldown — May 15 bot crashed 09:40, entered
+     two 1-strategy trades at 09:46 before a valid ORB existed.
