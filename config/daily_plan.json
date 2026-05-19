@@ -1,11 +1,11 @@
 {
-  "date": "2026-05-13",
+  "date": "2026-05-15",
   "version": 1,
-  "generated_at": "2026-05-13T08:40:00+05:30",
+  "generated_at": "2026-05-15T09:42:00+05:30",
   "regime_hint": {
     "direction": "RANGING",
-    "volatility": "NORMAL",
-    "notes": "NIFTY closed 23,379.55 (-1.83% Tue) — 2-session cumulative -3.3% from Mon-Tue. SGX Nifty -0.23% (~23,369) implies mild gap-down. US overnight: SPX -0.16%, NDQ -0.71% (tech sell-off, AI/semis weak). USD/INR 95.81 (+1.28%, rupee weak — IT exporter tailwind partially offset by US tech weakness). Crude Brent $107.10 (elevated, bearish India macro). VIX API unavailable; treat as NORMAL given orderly tape. US April CPI 3.8% hot — Fed hawkish overhang. No major India earnings today; SBIN Q4 missed Mon (-11% 2-day), TATAPOWER Q4 beat Mon (+8.3% PAT). Daily regime RANGING but tape carries downward drift — avoid directional bias, treat 09:45 VWAP as bias-flip trigger."
+    "volatility": "LOW",
+    "notes": "NIFTY closed 23,689.6 (+1.18%) — recovery day after Mon-Tue -3.3% drawdown. SGX Nifty +0.49% (~23,845) implies mild gap-up. US ATH overnight: SPX +0.78% (7,502), NDQ +0.88% (26,635) — AI/semis-led, broad risk-on. USD/INR 95.77 weak (IT exporter tailwind). Crude Brent $107.05 +1.26% (bearish India macro; RBI Gov flagged fuel-price hike risk if Middle East tension persists). NIFTY ATR 1.49%, vol regime LOW. VIX API null — treat as NORMAL given orderly recovery tape. No major India earnings disclosed in macro brief; SAIL Q4 board meet today (binary), SBIN AGM today (binary), BPCL trading window closed (Q4 May 19). Daily regime RANGING; tape carries upside drift but with macro headwinds — no directional bias, treat 09:45 VWAP as bias-flip trigger."
   },
   "risk_overrides": {
     "risk_per_trade_pct": 1.0,
@@ -16,58 +16,60 @@
       "symbol": "TATAPOWER",
       "bias": "both",
       "conviction": 3,
-      "notes": "Q4 beat May 12 (PAT +8.3% YoY, dividend Rs2.5). Post-results gap risk both ways; require 2+ confirmation. Wide ORB likely — avoid if >2%."
+      "notes": "Top-3 scanner score (2.74). Q4 announced last week, no event today, AGM Jul 7. Mixed analyst views (GS Sell vs Elara Buy 504). Tradeable both sides on 2+ confirmation. Watch wide-ORB threshold (>2% auto-exclude)."
     },
     {
       "symbol": "HDFCBANK",
       "bias": "both",
       "conviction": 3,
-      "notes": "No news, neutral. Sole bank in plan (SBIN out post-Q4 miss). Watch VWAP — banking-cluster volatility leaks from SBIN tape."
+      "notes": "Sole bank in plan. Resilient close (+0.50% May 14), independent legal review found no governance issues. No event today. Banking-cluster volatility low post-SBIN AGM. Watch VWAP closely."
+    },
+    {
+      "symbol": "INFY",
+      "bias": "both",
+      "conviction": 3,
+      "notes": "IT tailwind: US NDQ ATH +0.88%, USD/INR 95.77 weak. No fresh news. Scanner score 2.42. Tradeable both — IT sector saw 3-day decline into May 14 so reversal is possible."
+    },
+    {
+      "symbol": "HCLTECH",
+      "bias": "both",
+      "conviction": 3,
+      "notes": "Positive AI catalyst: Red Hat collaboration (May 14) + Google Cloud Agentic AI expansion. No event today. IT sector tailwind from NDQ ATH."
+    },
+    {
+      "symbol": "TCS",
+      "bias": "both",
+      "conviction": 2,
+      "notes": "IT sector positive macro but 3-day decline into May 14 on AI-substitution concerns. No event today. Lower conviction than INFY/HCLTECH given sector overhang."
+    },
+    {
+      "symbol": "DLF",
+      "bias": "both",
+      "conviction": 3,
+      "notes": "Q4 announced May 13-14, positive market reaction (net profit Rs 1,256 cr, FY27 pre-sales target Rs 20k cr). No event today. Scanner score 2.40."
     },
     {
       "symbol": "RELIANCE",
       "bias": "both",
       "conviction": 2,
-      "notes": "5th consecutive down day, Mojo Times Sell rating, but no event today. Jio IPO draft news is forward — not a today catalyst. Take both sides on 2+ confirmation only."
-    },
-    {
-      "symbol": "SAIL",
-      "bias": "both",
-      "conviction": 3,
-      "notes": "No material news. Top-3 scanner score (2.45). Metals proxy — directional with broader market."
+      "notes": "Downgrade to Sell May 11-12 (weak Q4 PAT -18.4%) is a structural overhang. No event today. Keep both bias with low conviction per W19 lesson — let intraday tape decide direction."
     },
     {
       "symbol": "HINDUNILVR",
       "bias": "both",
-      "conviction": 3,
-      "notes": "Defensive FMCG, no events. Reasonable hedge against directional uncertainty."
-    },
-    {
-      "symbol": "ITC",
-      "bias": "both",
-      "conviction": 3,
-      "notes": "Defensive FMCG, no confirmed Q4 date — treat as no event today. Holds 5/20/50-day MAs per recent research."
-    },
-    {
-      "symbol": "HCLTECH",
-      "bias": "both",
       "conviction": 2,
-      "notes": "IT, USD/INR weakness (95.81) is a tailwind. But US tech sell-off + INFY/TCS sector weakness caps upside. 2+ confirmation only."
-    },
-    {
-      "symbol": "INFY",
-      "bias": "both",
-      "conviction": 2,
-      "notes": "Hit 52-week low yesterday (Rs 1,137.05), trading below all key MAs. Both-bias tradeable; bias to short if VWAP rejects, long only on clear reclaim. No event today — investor roadshow ongoing (non-binary)."
+      "notes": "Defensive FMCG hedge. No events. Useful directional-uncertainty diversifier given crude-driven inflation risk."
     }
   ],
-  "rationale": "RANGING/NORMAL regime with persistent downward drift (NIFTY -3.3% in 2 sessions). Watchlist deliberately defensive: 1 bank (HDFCBANK), 2 FMCG (HINDUNILVR, ITC), 1 power (TATAPOWER, post-Q4), 2 IT (HCLTECH, INFY), 1 metals (SAIL), 1 energy (RELIANCE). All 'both' bias per W19 lesson — directional bias has misfired 3/4 weeks. Hard avoids: SBIN (Q4 miss + General Meeting May 15), BPCL (trading window closed till May 21, Q4 rescheduled), TCS (NCW harassment + 52-wk low), PNB/ETERNAL (outside NIFTY 50 per #lesson 2026-05-05), ADANIENT/INDUSINDBK (volatile history). Risk overrides tightened to max_trades=3, risk=1.0%, max_open=2 — 2-day drawdown + Fed hawkish overhang warrant defensive sizing. 2+ confirmation rule is the load-bearing filter today.",
+  "rationale": "8-symbol plan, all `both` bias per #lesson 2026-W19 (default-both unless robust directional catalyst). Tilted toward IT (3 names: INFY, HCLTECH, TCS) to capture NDQ ATH + weak rupee tailwind. One bank (HDFCBANK), one power (TATAPOWER), one realty (DLF), one defensive (HINDUNILVR), one energy with downside lean (RELIANCE low conviction). Hard avoids: SAIL (Q4 board meet today), SBIN (AGM today), BPCL (trading window closed until May 21), ADANIENT (no fresh news + W18/W19 re-entry history), PNB/ETERNAL (outside NIFTY 50 universe). Risk tightened to 1.0% per trade / max 2 open positions given (a) yesterday's -Rs 632 loss + 5-trade 20% win rate, (b) rising crude + RBI fuel-price hike warning, (c) two-week paper drawdown of ~2.6%. MAX_TRADES_PER_DAY stays at settings default (not overridable). Expect lunch-lull 12:00-13:30 — best setups before 11:30 or after 13:30. If NIFTY fades the SGX gap-up by 09:45 (within 0.3% of prior close), demote regime read to RANGING-flat and require strict 2+ confirmation everywhere.",
   "lessons_applied": [
-    "#lesson 2026-W19 (promoted): Default to bias: both unless catalyst is robust to intraday price action",
-    "#lesson 2026-W19 (promoted): On big-bank-print days keep at most one bank in watchlist with both bias (SBIN Q4 — only HDFCBANK kept)",
-    "#lesson 2026-05-08: Daily plan bias invalidation not auto-applied in code — prefer both bias",
-    "#lesson 2026-05-05: PNB/ETERNAL outside NIFTY 50 — excluded from watchlist",
-    "#lesson 2026-04-30: ADANIENT binary event block — extended to all stocks with Q4 today or active trading window restrictions",
-    "#lesson 2026-W19 (promoted): 2+ confirmation rule applies unconditionally — risk_overrides + bias=both is the gate"
+    "#lesson 2026-W19 (promoted): Default to `bias: both` unless catalyst is robust to intraday price action — all 8 names set to both.",
+    "#lesson 2026-W19 (promoted): On big-bank-print days keep at most one bank in the watchlist — only HDFCBANK included (SBIN AGM today excluded).",
+    "#lesson 2026-05-08: Bias-invalidation conditions not enforced in code — using `both` defensively rather than directional bias I cannot reliably invalidate intraday.",
+    "#lesson 2026-04-30: Binary-event stocks must be excluded entirely, not just flagged — SAIL (Q4 board meet today), SBIN (AGM today), BPCL (trading window closed) all hard-excluded.",
+    "#lesson 2026-05-05: Scanner can pick stocks outside the defined NIFTY 50 universe — PNB and ETERNAL excluded despite appearing in top 15.",
+    "#lesson 2026-05-04: Wide-ORB (>2%) stocks must auto-exclude — TATAPOWER notes flag this explicitly given post-Q4 volatility tail.",
+    "#lesson 2026-05-07: SGX gap framing can fade — rationale includes 09:45 VWAP recheck.",
+    "#lesson 2026-W18 (promoted): R:R filter is the strongest discipline guardrail — risk tightened (1.0%/2 open) so the filter can do its job on a fresh-drawdown day."
   ]
 }
