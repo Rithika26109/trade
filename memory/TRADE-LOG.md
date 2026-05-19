@@ -4,6 +4,21 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-19 (Monday) — EOD
+- Regime: RANGING/slight-up (NIFTY +0.43% at midday, prior close 23,649.95) | VIX: 18.5 (NORMAL)
+- Trades: 3 | Wins: 0 | Losses: 3 | Win Rate: 0% | P&L: -Rs 93.74
+- Paper capital: ~Rs 96,050 (drawdown 3.95% from Rs 1,00,000 start)
+- Key trades: BUY SAIL @196.17→195.81 -Rs 20.05 (SL, 1-strat VWAP_ST, 20-min turnaround), BUY TATAPOWER @409.71→408.20 -Rs 60.58 (SL, 1-strat ORB, 10-min turnaround), BUY DLF @581.87→581.00 -Rs 13.11 (SL, 1-strat ORB, 2h15m slow fade)
+- Notes: All 3 entries = 1-strategy (MIN_CONFIRMATIONS=2 enforcement failure, W21 = 4th consecutive week). BHARTIARTL (plan conviction-4 top pick, noon score 3.31) not traded — bot selection logic decoupled from plan priority. SL discrepancy observed: exit prices well above entry-event SL levels across all 3 trades — investigate SL placement bug. Quote API Bad Request at open (HDFCBANK/others may have been suppressed). SAIL/TATAPOWER consecutive losses — cooldown should apply.
+
+## 2026-05-19 (Monday) — Opening
+- NIFTY prior close: 23,649.95 | SGX gap-up: +0.19% (~23,694) — mild gap-up open
+- Key gaps (from pre-market plan): HDFCBANK -1.11%, DLF -1.06%, TATAPOWER -0.59%, SAIL -0.21%, RELIANCE -0.18%, INFY flat, TCS flat
+- No wide-ORB auto-excludes triggered (all gaps < 2%)
+- Bot status: RUNNING — collecting ORB range (09:15–09:30). Risk overrides loaded: 1.0%/trade, max 2 open
+- Watchlist: BHARTIARTL, TATAPOWER, INFY, DLF, SAIL, HDFCBANK, RELIANCE, TCS (all both-bias)
+- Note: Quote API returning Bad Request (Bad enctoken?) — investigate after session
+
 ## 2026-05-15 (Friday) — EOD
 - Regime: RANGING (NIFTY +0.23% midday, mild gap-up recovery) | VIX: 18.48 (NORMAL)
 - Trades: 4 | Wins: 0 | Losses: 4 | Win Rate: 0% | P&L: -Rs 645.61
