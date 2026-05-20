@@ -4,6 +4,21 @@ Running log of daily trade summaries. Most recent first. Older than 30 days gets
 
 ---
 
+## 2026-05-20 (Tuesday) — EOD
+- Regime: RANGING-flat (NIFTY 23,593, -0.11%; 09:45 recheck confirmed within 0.3% of 23,618 prior close) | VIX: 19.05 (NORMAL)
+- Trades: 0 | Wins: 0 | Losses: 0 | Win Rate: N/A | P&L: Rs 0.00
+- Paper capital: ~Rs 96,050 (drawdown 3.95% from Rs 1,00,000 start — unchanged from May 19)
+- Key trades: None. All watchlist stocks remained inside ORB range all day; no 2+ strategy confluence fired. RELIANCE RSI 72.3 at midday (above 40-70 buy zone — auto-reject). BHARTIARTL top eligible score 2.91 but HOLD.
+- Notes: Clean 0-trade day. SGX -0.43% gap-down converted to RANGING-flat by 09:45 per #lesson 2026-05-07. Conservative overrides (0.8%/trade, max_open=2, strict 2+ confirmation) produced correct outcome — no forced entries, capital preserved. 5th session in drawdown run (May 13/14/15/19/20). Quote API shell-script still Bad Request (bot internal polling unaffected).
+
+## 2026-05-20 (Tuesday) — Opening
+- NIFTY ref: ~23,618 (SGX -0.43% gap-down; US weak SPX -0.67%; Asia risk-off Nikkei -1.75%)
+- Key gaps: INFY +1.71% (IT rupee tailwind, strict 2+ confirmation required); macro gap-down across board
+- Bot status: RUNNING (PID 66821, collecting ORB 9:15-9:30)
+- Watchlist: BHARTIARTL (c4), INFY/ITC (c3), HDFCBANK/TCS/RELIANCE/TATAPOWER (c2) | SAIL: avoid
+- Regime: RANGING/LOW | Risk: 0.8%/trade, max_open=2
+- Quote API: shell-script returning Bad Request (known issue; bot internal polling working fine)
+
 ## 2026-05-19 (Monday) — EOD
 - Regime: RANGING/slight-up (NIFTY +0.43% at midday, prior close 23,649.95) | VIX: 18.5 (NORMAL)
 - Trades: 3 | Wins: 0 | Losses: 3 | Win Rate: 0% | P&L: -Rs 93.74
