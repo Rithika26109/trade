@@ -1,73 +1,78 @@
 {
-  "date": "2026-05-13",
+  "date": "2026-05-20",
   "version": 1,
-  "generated_at": "2026-05-13T08:40:00+05:30",
+  "generated_at": "2026-05-20T03:09:50Z",
   "regime_hint": {
     "direction": "RANGING",
-    "volatility": "NORMAL",
-    "notes": "NIFTY closed 23,379.55 (-1.83% Tue) — 2-session cumulative -3.3% from Mon-Tue. SGX Nifty -0.23% (~23,369) implies mild gap-down. US overnight: SPX -0.16%, NDQ -0.71% (tech sell-off, AI/semis weak). USD/INR 95.81 (+1.28%, rupee weak — IT exporter tailwind partially offset by US tech weakness). Crude Brent $107.10 (elevated, bearish India macro). VIX API unavailable; treat as NORMAL given orderly tape. US April CPI 3.8% hot — Fed hawkish overhang. No major India earnings today; SBIN Q4 missed Mon (-11% 2-day), TATAPOWER Q4 beat Mon (+8.3% PAT). Daily regime RANGING but tape carries downward drift — avoid directional bias, treat 09:45 VWAP as bias-flip trigger."
+    "volatility": "LOW",
+    "notes": "SGX Nifty 23,414 (-0.43%) gap-down; US closed weak (SPX -0.67%, NDQ -0.84%) on 10Y yield 16-mo high + 30Y >5.19%; Asia risk-off (Nikkei -1.75%, HSI -0.34%); Brent $110.83 elevated; USD/INR 96.53 weak rupee = IT tailwind. NIFTY daily regime tag is TREND_DOWN but per #lesson 2026-W19 pre-market direction was wrong on 3/4 intraday tapes — defaulting to RANGING + bias:both. Recheck 09:45 per #lesson 2026-05-07."
   },
   "risk_overrides": {
-    "risk_per_trade_pct": 1.0,
+    "risk_per_trade_pct": 0.8,
     "max_open_positions": 2
   },
   "watchlist": [
     {
-      "symbol": "TATAPOWER",
+      "symbol": "BHARTIARTL",
       "bias": "both",
-      "conviction": 3,
-      "notes": "Q4 beat May 12 (PAT +8.3% YoY, dividend Rs2.5). Post-results gap risk both ways; require 2+ confirmation. Wide ORB likely — avoid if >2%."
+      "conviction": 4,
+      "notes": "5G Postpaid launch today (Rs 449-1749 plans). Jefferies 'buy' target Rs 2,350 (May 18). Briefly overtook HDFCBANK mkt cap May 19. Top scanner momentum 2.87. Invalidates if loses VWAP through 09:45."
     },
     {
-      "symbol": "HDFCBANK",
+      "symbol": "INFY",
       "bias": "both",
       "conviction": 3,
-      "notes": "No news, neutral. Sole bank in plan (SBIN out post-Q4 miss). Watch VWAP — banking-cluster volatility leaks from SBIN tape."
-    },
-    {
-      "symbol": "RELIANCE",
-      "bias": "both",
-      "conviction": 2,
-      "notes": "5th consecutive down day, Mojo Times Sell rating, but no event today. Jio IPO draft news is forward — not a today catalyst. Take both sides on 2+ confirmation only."
-    },
-    {
-      "symbol": "SAIL",
-      "bias": "both",
-      "conviction": 3,
-      "notes": "No material news. Top-3 scanner score (2.45). Metals proxy — directional with broader market."
-    },
-    {
-      "symbol": "HINDUNILVR",
-      "bias": "both",
-      "conviction": 3,
-      "notes": "Defensive FMCG, no events. Reasonable hedge against directional uncertainty."
+      "notes": "IT sector rallied ~5% May 19 on weak rupee (USD/INR 96.53). Gap +1.71% in scanner. Overextension risk — require strict 2+ confirmation, no high-score bypass leniency."
     },
     {
       "symbol": "ITC",
       "bias": "both",
       "conviction": 3,
-      "notes": "Defensive FMCG, no confirmed Q4 date — treat as no event today. Holds 5/20/50-day MAs per recent research."
+      "notes": "Acquisitions announced today: ITC Hotels buys Zuri (Rs 205 cr EV) + 49.3% Mother Sparsh (Rs 30 cr). Treat as soft catalyst; both bias."
     },
     {
-      "symbol": "HCLTECH",
+      "symbol": "HDFCBANK",
       "bias": "both",
       "conviction": 2,
-      "notes": "IT, USD/INR weakness (95.81) is a tailwind. But US tech sell-off + INFY/TCS sector weakness caps upside. 2+ confirmation only."
+      "notes": "Sole bank per #lesson 2026-W19 single-bank rule (SBIN has 17bps NIM contraction). RBI IFR change is mild positive tailwind from May 18. Verify Quote API at 09:05 (#lesson 2026-05-19)."
     },
     {
-      "symbol": "INFY",
+      "symbol": "TCS",
       "bias": "both",
       "conviction": 2,
-      "notes": "Hit 52-week low yesterday (Rs 1,137.05), trading below all key MAs. Both-bias tradeable; bias to short if VWAP rejects, long only on clear reclaim. No event today — investor roadshow ongoing (non-binary)."
+      "notes": "IT diversifier on weak rupee. May 19 salary-cut/Band-D headlines linger. Lower conviction than INFY. Quote API has been flaky on this name — verify pre-open."
+    },
+    {
+      "symbol": "RELIANCE",
+      "bias": "both",
+      "conviction": 2,
+      "notes": "No fresh catalyst per Gemini. High liquidity, energy weight makes it Brent-sensitive ($110.83 elevated)."
+    },
+    {
+      "symbol": "TATAPOWER",
+      "bias": "both",
+      "conviction": 2,
+      "notes": "Utility diversifier, no event risk today. Stopped out May 15 + May 19 — cooldown logic should still allow today's entry. Watch wide-ORB."
+    },
+    {
+      "symbol": "SAIL",
+      "bias": "avoid",
+      "conviction": 1,
+      "notes": "Avoid. Consecutive SL hits May 13 + May 19 (both 1-strategy VWAP_ST losses, -Rs 166 + -Rs 20). No fresh catalyst. Cooldown + #lesson 2026-04-29 same-stock-after-SL re-entry caution."
     }
   ],
-  "rationale": "RANGING/NORMAL regime with persistent downward drift (NIFTY -3.3% in 2 sessions). Watchlist deliberately defensive: 1 bank (HDFCBANK), 2 FMCG (HINDUNILVR, ITC), 1 power (TATAPOWER, post-Q4), 2 IT (HCLTECH, INFY), 1 metals (SAIL), 1 energy (RELIANCE). All 'both' bias per W19 lesson — directional bias has misfired 3/4 weeks. Hard avoids: SBIN (Q4 miss + General Meeting May 15), BPCL (trading window closed till May 21, Q4 rescheduled), TCS (NCW harassment + 52-wk low), PNB/ETERNAL (outside NIFTY 50 per #lesson 2026-05-05), ADANIENT/INDUSINDBK (volatile history). Risk overrides tightened to max_trades=3, risk=1.0%, max_open=2 — 2-day drawdown + Fed hawkish overhang warrant defensive sizing. 2+ confirmation rule is the load-bearing filter today.",
+  "rationale": "8 names, 7 tradeable + SAIL avoid. All tradeable names on bias:both per #lesson 2026-W19 (pre-market directional bias contradicted 3/4 intraday tapes in W19). BHARTIARTL highest conviction (5G launch + Jefferies upgrade + mkt-cap milestone). ITC and INFY at conviction 3 on fresh catalysts. Risk tightened to 0.8%/trade after 4 consecutive losing sessions (May 13/14/15/19) plus risk-off macro: SGX -0.43%, US down, Asia down, Iran threats. max_open_positions=2. Hard avoids outside watchlist: ETERNAL/PNB/BANKBARODA (outside NIFTY 50 allowlist), HCLTECH (May 15 ransomware + May 15 -Rs 221 loss + 52-wk lows), TATASTEEL (JPM downgrade today to Neutral, target Rs 220), ADANIENT (gap +1.67% wide-ORB risk + #lesson 2026-04-30 binary/gap-through history), SBIN (NIM contraction headline + W19 single-bank rule), BPCL (binary window). Recheck regime at 09:45 IST — if NIFTY within 0.3% of 23,618 by then, RANGING-flat confirmed, require strict 2+ confirmation.",
   "lessons_applied": [
-    "#lesson 2026-W19 (promoted): Default to bias: both unless catalyst is robust to intraday price action",
-    "#lesson 2026-W19 (promoted): On big-bank-print days keep at most one bank in watchlist with both bias (SBIN Q4 — only HDFCBANK kept)",
-    "#lesson 2026-05-08: Daily plan bias invalidation not auto-applied in code — prefer both bias",
-    "#lesson 2026-05-05: PNB/ETERNAL outside NIFTY 50 — excluded from watchlist",
-    "#lesson 2026-04-30: ADANIENT binary event block — extended to all stocks with Q4 today or active trading window restrictions",
-    "#lesson 2026-W19 (promoted): 2+ confirmation rule applies unconditionally — risk_overrides + bias=both is the gate"
+    "#lesson 2026-W19 default-both bias when intraday direction unclear",
+    "#lesson 2026-W19 single-bank rule on volatile macro days (HDFCBANK only)",
+    "#lesson 2026-W19 unconditional 2+ confirmation regardless of score",
+    "#lesson 2026-04-30 binary-event hard-exclude (TATASTEEL JPM downgrade, SBIN NIM, BPCL window)",
+    "#lesson 2026-05-05 NIFTY 50 allowlist (ETERNAL/PNB/BANKBARODA excluded)",
+    "#lesson 2026-05-05 already_stopped_today cooldown (SAIL avoid)",
+    "#lesson 2026-05-04 wide-ORB auto-exclude on >2% gaps (ADANIENT borderline)",
+    "#lesson 2026-05-07 09:45 SGX-gap recheck if NIFTY drift < 0.3%",
+    "#lesson 2026-W18 risk-cap discipline (0.8% after 4 consecutive losing sessions)",
+    "#lesson 2026-05-08 prefer bias:both since bias-invalidation conditions are not enforced in code",
+    "#lesson 2026-05-19 conviction-ranked plan should not be ignored for lower-conviction 1-strategy entries"
   ]
 }
